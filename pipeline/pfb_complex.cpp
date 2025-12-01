@@ -1,0 +1,72 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <fftw3.h>
+#include <fstream>
+#include <chrono>
+#include "../utils/FilterbankHeader.h"
+#include "../modules/pfb/PolyPhaseFB.h"
+#include "../modules/dedispersion/CoherentDedispersion.h"
+
+// ----------------------------------------
+// Simple PFB: FIR → polyphase → FFT
+// ----------------------------------------
+int main()
+{
+    unsigned gpu_fft_len = 128*1024;
+    int fft_len = 512;      // FFT channels
+    int taps = 8;         // Taps per phase
+    int filter_len = fft_len * taps;     // Total FIR length
+    ort::ponder::utils::FilterbankHeader<float> fil_header;
+
+
+
+    std::ifstream infile("/home/arun/ort/J0332+5434_61004.800000.bin", std::ios::binary);
+        if (!infile) {
+            std::cerr << "Cannot open file\n";
+            return 1;
+        }
+
+    std::ofstream outfile("B0329_complex.fil", std::ios::binary);
+        if (!outfile) {
+            std::cerr << "Cannot open file\n";
+            return 1;
+        }
+
+    fil_header.write_header(outfile);
+
+    std::vector<char> data_in(4*filter_len);
+    std::vector<std::complex<float>> data_filtered(gpu_fft_len*fft_len/2);
+    std::vector<float> data_out(gpu_fft_len*fft_len/2);
+    ort::ponder::modules::pfb::PolyPhaseFB pfb(fft_len, 1.0/fft_len, taps);
+    ort::ponder::modules::dedispersion::CoherentDedispersion dedisp(fft_len/2, gpu_fft_len, 26.7);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    infile.read(reinterpret_cast<char*>(&data_in[0]), data_in.size()/2);
+    unsigned iter=0;
+    while(!infile.eof())
+    {
+        infile.read(reinterpret_cast<char*>(&data_in[data_in.size()/2]), data_in.size()/2);
+        //std::cout<<iter<<" "<<(int)data_in[0]<<" "<<(int)data_in[1]<<(int)data_in[2]<<" "<<(int)data_in[3]<<"\n";
+        pfb.exec(data_in, data_filtered, filter_len*iter/2);
+        std::copy(data_in.begin()+data_in.size()/2, data_in.end(), data_in.begin());
+        //for(unsigned int i=0; i<filter_len/2; ++i) data_out[i] = pow(data_filtered[filter_len*iter+i].real(),2) + pow(data_filtered[filter_len*iter+i].imag(),2);
+        //outfile.write(reinterpret_cast<char*>(data_out.data()), filter_len/2*sizeof(float));
+
+        iter++;
+        if(iter==gpu_fft_len*fft_len/(filter_len))
+        {
+            iter=0;
+            //dedisp.dedisperse(data_filtered, data_out);
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+            start = stop;
+            for(unsigned int i=0; i<gpu_fft_len*fft_len/2; ++i)
+            {
+                data_out[i] = std::norm(data_filtered[i]);
+            }
+            outfile.write(reinterpret_cast<char*>(data_out.data()), data_out.size()*sizeof(float));
+        }
+    }
+    return 0;
+}
