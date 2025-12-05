@@ -11,7 +11,7 @@
 // ----------------------------------------
 // Simple PFB: FIR → polyphase → FFT
 // ----------------------------------------
-int main()
+int main(int argc, char* argv[])
 {
     unsigned gpu_fft_len = 128*1024;
     int fft_len = 512;      // FFT channels
@@ -21,17 +21,19 @@ int main()
 
 
 
-    std::ifstream infile("/home/arun/ort/J0332+5434_61004.800000.bin", std::ios::binary);
+    std::ifstream infile(argv[1], std::ios::binary);
         if (!infile) {
             std::cerr << "Cannot open file\n";
             return 1;
         }
 
-    std::ofstream outfile("B0329_complex.fil", std::ios::binary);
+    std::ofstream outfile(argv[3], std::ios::binary);
         if (!outfile) {
             std::cerr << "Cannot open file\n";
             return 1;
         }
+
+    fil_header.tstart(atof(argv[2]));
 
     fil_header.write_header(outfile);
 
@@ -39,7 +41,7 @@ int main()
     std::vector<std::complex<float>> data_filtered(gpu_fft_len*fft_len/2);
     std::vector<float> data_out(gpu_fft_len*fft_len/2);
     ort::ponder::modules::pfb::PolyPhaseFB pfb(fft_len, 1.0/fft_len, taps);
-    ort::ponder::modules::dedispersion::CoherentDedispersion dedisp(fft_len/2, gpu_fft_len, 26.7);
+    ort::ponder::modules::dedispersion::CoherentDedispersion dedisp(fft_len/2, gpu_fft_len, atof(argv[4]));
 
     auto start = std::chrono::high_resolution_clock::now();
     infile.read(reinterpret_cast<char*>(&data_in[0]), data_in.size()/2);

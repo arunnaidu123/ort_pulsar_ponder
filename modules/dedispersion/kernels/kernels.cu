@@ -61,54 +61,28 @@ void typecast_out(float* data_out, float2* cufft_out, int gpu_fft_len, int size)
     }
 }
 
-/*
-
-__global__ void convolve(float2 *first, float2 *second, double *phase, int block)
+extern "C"
+__global__ void convolve(float2 *spectra, double *phase)
 {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   float2 at;
-  float2 f,fb,s,sb;
+  float2 f;
   double cx,cy;
   double r = phase[tid];
   cx = cos(r);
   cy = sin(r);
 
-  f= first[tid];
-  fb = first[tid+block];
-  s = second[tid];
-  sb = second[tid+block];
-
+  f = spectra[tid];
 
   at.x = (float)((f.x*cx)-(f.y*cy));
   at.y = (float)((f.x*cy)+(f.y*cx));
 
-  f = at;
-
-  at.x = (float)((fb.x*cx)-(fb.y*cy));
-  at.y = (float)((fb.x*cy)+(fb.y*cx));
-
-  fb = at;
-
-  at.x = (float)((s.x*cx)-(s.y*cy));
-  at.y = (float)((s.x*cy)+(s.y*cx));
-
-  s = at;
-
-  at.x = (float)((sb.x*cx)-(sb.y*cy));
-  at.y = (float)((sb.x*cy)+(sb.y*cx));
-
-  sb = at;
-
-  first[tid] = f;
-  first[tid+block] = fb;
-  second[tid] = s;
-  second[tid+block] = sb;
-
+  spectra[tid] = at;
 
 }
 
-
+/*
 
 __global__ void typeCaste_first(unsigned char *data0, unsigned char *data1, float2 *first, int nfft, int block)
 {

@@ -22,10 +22,10 @@ CoherentDedispersion::CoherentDedispersion(unsigned nchans, unsigned fft_len, fl
     int rank = 1;
     int nRows = _gpu_fft_len;
     std::vector<int> n{nRows};
-    int idist = _gpu_fft_len;
-    int odist = _gpu_fft_len;
-    int istride = 1;
-    int ostride = 1;
+    int idist = 1;
+    int odist = 1;
+    int istride = nchans;
+    int ostride = nchans;
 
     cudaMalloc((void **)&_cufft_in, sizeof(float2)*_gpu_fft_len*_nchans);
     cudaMalloc((void **)&_cufft_out, sizeof(float2)*_gpu_fft_len*_nchans);
@@ -34,7 +34,7 @@ CoherentDedispersion::CoherentDedispersion(unsigned nchans, unsigned fft_len, fl
     cudaMalloc((void **)&_phase, sizeof(double)*_gpu_fft_len*_nchans);
     cufftPlanMany(&_plan, rank, n.data(), NULL, istride, idist, NULL, ostride, odist, CUFFT_C2C, batch);
 
-    //calPhase(dm);
+    calPhase(dm);
 }
 
 CoherentDedispersion::~CoherentDedispersion()
@@ -65,8 +65,9 @@ int CoherentDedispersion::dedisperse(std::vector<std::complex<float>>& data_in, 
     //cudaMemcpy(_data_in, data_in.data(), sizeof(char)*block_size, cudaMemcpyHostToDevice);
     cudaMemcpy(&cufft_in[0], &cufft_in[block_size/2], sizeof(float2)*block_size/2, cudaMemcpyDeviceToDevice);
     cudaMemcpy(&cufft_in[block_size/2], &data_in[block_size/2], sizeof(float2)*block_size/2, cudaMemcpyHostToDevice);
-    //typecast_in<<<block_size/(2048),1024>>>(cufft_in, _data_in, block_size/2);
+
     cufftExecC2C(_plan, cufft_in, cufft_out, CUFFT_FORWARD);
+    convolve<<<block_size/(1024),1024>>>(cufft_in, _phase);
     cufftExecC2C(_plan, cufft_out, cufft_out, CUFFT_INVERSE);
     typecast_out<<<block_size/(2048),1024>>>(_data_out, cufft_out, _gpu_fft_len, block_size/2);
     cudaMemcpy(data_out.data(), _data_out, sizeof(char)*block_size/2, cudaMemcpyDeviceToHost);
