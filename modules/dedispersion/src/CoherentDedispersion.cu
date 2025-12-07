@@ -17,6 +17,7 @@ CoherentDedispersion::CoherentDedispersion(unsigned nchans, unsigned fft_len, fl
     :   _nchans(nchans)
     ,   _gpu_fft_len(fft_len)
     ,   _dm(dm)
+    ,   _temp_phase(fft_len*nchans)
 {
     int batch = nchans;
     int rank = 1;
@@ -34,7 +35,14 @@ CoherentDedispersion::CoherentDedispersion(unsigned nchans, unsigned fft_len, fl
     cudaMalloc((void **)&_phase, sizeof(double)*_gpu_fft_len*_nchans);
     cufftPlanMany(&_plan, rank, n.data(), NULL, istride, idist, NULL, ostride, odist, CUFFT_C2C, batch);
 
-    calPhase(dm);
+    calPhase();
+    //cudaMemcpy(_temp_phase.data(), _phase, sizeof(double)*_gpu_fft_len*_nchans, cudaMemcpyDeviceToHost);
+    //for(unsigned i=0; i<_gpu_fft_len/2; ++i)
+    //{
+    //    std::cout<<i<<" "<<_temp_phase[256*i]<<" \n";
+    //}
+    //exit(0);
+
 }
 
 CoherentDedispersion::~CoherentDedispersion()
@@ -47,8 +55,9 @@ CoherentDedispersion::~CoherentDedispersion()
     cudaFree(_phase);
 }
 
-int CoherentDedispersion::calPhase(float dm)
+int CoherentDedispersion::calPhase()
 {
+    std::cout<<"calculating phase "<<_dm<<"\n";
     calPhaseKernel<<<_gpu_fft_len*_nchans/(1024),1024>>>(_phase, _dm, _gpu_fft_len, _nchans, _gpu_fft_len*_nchans);
 
     cudaDeviceSynchronize();
@@ -61,16 +70,13 @@ int CoherentDedispersion::dedisperse(std::vector<std::complex<float>>& data_in, 
     float2* cufft_in = reinterpret_cast<float2*>(_cufft_in);
     float2* cufft_out = reinterpret_cast<float2*>(_cufft_out);
     unsigned block_size = _gpu_fft_len*_nchans;
-
-    //cudaMemcpy(_data_in, data_in.data(), sizeof(char)*block_size, cudaMemcpyHostToDevice);
     cudaMemcpy(&cufft_in[0], &cufft_in[block_size/2], sizeof(float2)*block_size/2, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(&cufft_in[block_size/2], &data_in[block_size/2], sizeof(float2)*block_size/2, cudaMemcpyHostToDevice);
-
+    cudaMemcpy(&cufft_in[block_size/2], &data_in[0], sizeof(float2)*block_size/2, cudaMemcpyHostToDevice);
     cufftExecC2C(_plan, cufft_in, cufft_out, CUFFT_FORWARD);
-    convolve<<<block_size/(1024),1024>>>(cufft_in, _phase);
+    convolve<<<block_size/(1024),1024>>>(cufft_out, _phase);
     cufftExecC2C(_plan, cufft_out, cufft_out, CUFFT_INVERSE);
     typecast_out<<<block_size/(2048),1024>>>(_data_out, cufft_out, _gpu_fft_len, block_size/2);
-    cudaMemcpy(data_out.data(), _data_out, sizeof(char)*block_size/2, cudaMemcpyDeviceToHost);
+    cudaMemcpy(data_out.data(), _data_out, sizeof(float)*block_size/2, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
     return 0;

@@ -20,12 +20,13 @@ __global__ void calPhaseKernel(double *phase, float dm, int nfft, int nbands, in
   double s=6.2831853071796*dispersion_per_MHz;
   double channel_width = 16.0/((double) nbands); //bandwidth of each channel
   double bin_width = channel_width/(double)nfft;
-  int t_bin = tid%nfft;
+  int band = tid%nbands;
+  int t_bin = tid/nbands;
   int bin=0;
   if(t_bin<nfft/2) bin = t_bin+nfft/2;
   if(t_bin>=nfft/2) bin = t_bin-nfft/2;
-  double f_mid = 334.5-((int)(tid/(nfft)))*channel_width;
-  double offset = bin_width*bin - 0.5*channel_width;
+  double f_mid = 334.5-band*channel_width - 0.5*channel_width; // centre frequency of each band
+  double offset = 0.5*channel_width - bin_width*bin;
   double frequency = f_mid-offset;
   double r = (offset*offset*s)/(frequency*f_mid*f_mid);
 
@@ -79,7 +80,8 @@ __global__ void convolve(float2 *spectra, double *phase)
   at.y = (float)((f.x*cy)+(f.y*cx));
 
   spectra[tid] = at;
-
+  //spectra[tid].x = 0.0;
+  //spectra[tid].y = 0.0;
 }
 
 /*

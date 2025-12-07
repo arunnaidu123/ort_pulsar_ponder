@@ -28,7 +28,7 @@ public:
     CoherentDedispersion(unsigned _nchans, unsigned fft_len, float dm);
     ~CoherentDedispersion();
 
-    int calPhase(float dm);
+    int calPhase();
 
     int dedisperse(std::vector<std::complex<float>>& data_in, std::vector<float>& data_out);
 
@@ -41,6 +41,7 @@ private:
     float* _data_out;
     void* _cufft_in;
     void* _cufft_out;
+    std::vector<double> _temp_phase;
 #ifdef __CUDACC__
     cufftHandle _plan;
 #endif //__CUDACC__
