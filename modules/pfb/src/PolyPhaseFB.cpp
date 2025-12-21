@@ -88,6 +88,10 @@ void PolyPhaseFB::exec(std::vector<char> const& data_in, std::vector<std::comple
     }
 }
 
+std::vector<double>& PolyPhaseFB::hamming_filter()
+{
+    return _hamming_fir;
+}
 
 } // namespace pfb
 } // namespace utils

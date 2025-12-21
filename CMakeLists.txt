@@ -21,5 +21,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_subdirectory(modules/pfb)
 add_subdirectory(modules/dedispersion)
+add_subdirectory(modules/dispersed_pulsar)
+add_subdirectory(modules/legacy_dedispersion)
 add_subdirectory(utils)
 add_subdirectory(pipeline)
+add_subdirectory(tests)

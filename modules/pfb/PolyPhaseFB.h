@@ -25,6 +25,8 @@ public:
 
     double dot(const std::vector<double>& a, const std::vector<double>& b);
 
+    std::vector<double>& hamming_filter();
+
 private:
     unsigned _filter_len;
     unsigned _fft_len;

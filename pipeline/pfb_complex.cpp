@@ -19,8 +19,6 @@ int main(int argc, char* argv[])
     int filter_len = fft_len * taps;     // Total FIR length
     ort::ponder::utils::FilterbankHeader<float> fil_header;
 
-
-
     std::ifstream infile(argv[1], std::ios::binary);
         if (!infile) {
             std::cerr << "Cannot open file\n";
@@ -40,7 +38,7 @@ int main(int argc, char* argv[])
     std::vector<char> data_in(4*filter_len);
     std::vector<std::complex<float>> data_filtered(gpu_fft_len*fft_len/4);
     std::vector<float> data_out(gpu_fft_len*fft_len/4);
-    ort::ponder::modules::pfb::PolyPhaseFB pfb(fft_len, 1.0/fft_len, taps);
+    ort::ponder::modules::pfb::PolyPhaseFB pfb(fft_len, 1.0/(4*fft_len), taps);
     ort::ponder::modules::dedispersion::CoherentDedispersion dedisp(fft_len/2, gpu_fft_len, atof(argv[4]));
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -50,12 +48,8 @@ int main(int argc, char* argv[])
     while(!infile.eof())
     {
         infile.read(reinterpret_cast<char*>(&data_in[data_in.size()/2]), data_in.size()/2);
-        //std::cout<<iter<<" "<<(int)data_in[0]<<" "<<(int)data_in[1]<<(int)data_in[2]<<" "<<(int)data_in[3]<<"\n";
         pfb.exec(data_in, data_filtered, filter_len*iter/2);
         std::copy(data_in.begin()+data_in.size()/2, data_in.end(), data_in.begin());
-        //for(unsigned int i=0; i<filter_len/2; ++i) data_out[i] = pow(data_filtered[filter_len*iter+i].real(),2) + pow(data_filtered[filter_len*iter+i].imag(),2);
-        //outfile.write(reinterpret_cast<char*>(data_out.data()), filter_len/2*sizeof(float));
-
         iter++;
         if(iter==gpu_fft_len*fft_len/(2*filter_len))
         {

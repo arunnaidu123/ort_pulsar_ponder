@@ -1,10 +1,11 @@
 enable_language(CUDA)
 
 find_package(CUDAToolkit REQUIRED)
+find_library(FFTW3F_LIBRARY fftw3f REQUIRED)
 
 add_library(dedispersion
-    kernels/kernels.cu
-    src/CoherentDedispersion.cu
+    #kernels/kernels.cu
+    src/CoherentDedispersion.cpp
 )
 
 set_target_properties(dedispersion PROPERTIES
@@ -12,6 +13,7 @@ set_target_properties(dedispersion PROPERTIES
 )
 
 target_link_libraries(dedispersion PRIVATE
+    ${FFTW3F_LIBRARY}
     CUDA::cudart
     CUDA::cufft
 )

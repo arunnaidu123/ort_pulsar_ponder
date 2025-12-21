@@ -2,7 +2,7 @@
 
 extern "C"
 __global__
-void calPhaseKernel(double* phase, float dm, int fft_len, int nchans, int total);
+void calPhaseKernel(double* phase, float dm, int fft_len, int nchans);
 
 extern "C"
 __global__

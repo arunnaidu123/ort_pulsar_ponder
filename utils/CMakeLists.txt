@@ -1,3 +1,4 @@
 add_library(utils
-    src/SendStuff.cpp
+    src/SendStuff.cu
+    src/DedispHeader.cpp
 )
