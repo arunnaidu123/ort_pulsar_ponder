@@ -1,6 +1,9 @@
-enable_language(CUDA)
+# ------------------------------------------------------------
+# Legacy dedispersion CUDA library
+# ------------------------------------------------------------
 
-find_package(CUDAToolkit REQUIRED)
+# CUDA language already enabled at top level:
+# project(... LANGUAGES CXX CUDA)
 
 add_library(legacy_dedispersion
     kernels/kernels.cu
@@ -9,13 +12,21 @@ add_library(legacy_dedispersion
 
 set_target_properties(legacy_dedispersion PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
+    CUDA_STANDARD 14
 )
 
+# ------------------------------------------------------------
+# Linking
+# ------------------------------------------------------------
 target_link_libraries(legacy_dedispersion PRIVATE
-    CUDA::cudart
-    CUDA::cufft
+    cudart
+    cufft
 )
 
+# ------------------------------------------------------------
+# Includes
+# ------------------------------------------------------------
 target_include_directories(legacy_dedispersion PRIVATE
-    ${CUDAToolkit_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/kernels
 )

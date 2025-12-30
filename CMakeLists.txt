@@ -1,15 +1,38 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.16)
 
-project(MyProject LANGUAGES CXX CUDA)
+# ------------------------------------------------------------------
+# Project
+# ------------------------------------------------------------------
+project(ponder LANGUAGES CXX CUDA)
 
+# ------------------------------------------------------------------
+# C++ standard
+# ------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_BUILD_TYPE Release)
 
-# TEMPORARILY REMOVE ARCH FLAGS
-# (CMake will warn, but won't error)
+# ------------------------------------------------------------------
+# Build type
+# ------------------------------------------------------------------
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+endif()
+
+# ------------------------------------------------------------------
+# CUDA configuration (native, no FindCUDA)
+# ------------------------------------------------------------------
+# Let CMake find nvcc automatically. If needed, uncomment and set explicitly:
+# set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+# TEMPORARILY DISABLED (safe to enable later)
 # set(CMAKE_CUDA_ARCHITECTURES 75)
 
+# ------------------------------------------------------------------
+# FetchContent
+# ------------------------------------------------------------------
 include(FetchContent)
 
 FetchContent_Declare(
@@ -19,6 +42,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# ------------------------------------------------------------------
+# Subdirectories
+# ------------------------------------------------------------------
 add_subdirectory(modules/pfb)
 add_subdirectory(modules/dedispersion)
 add_subdirectory(modules/dispersed_pulsar)

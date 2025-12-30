@@ -1,23 +1,34 @@
-enable_language(CUDA)
+# ------------------------------------------------------------
+# Dedispersion library
+# ------------------------------------------------------------
 
-find_package(CUDAToolkit REQUIRED)
+# CUDA language is already enabled at top-level via:
+# project(... LANGUAGES CXX CUDA)
+
 find_library(FFTW3F_LIBRARY fftw3f REQUIRED)
 
 add_library(dedispersion
-    #kernels/kernels.cu
     src/CoherentDedispersion.cpp
+    # If/when you add CUDA:
+    # src/kernels.cu
 )
 
 set_target_properties(dedispersion PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
 )
 
+# ------------------------------------------------------------
+# Linking
+# ------------------------------------------------------------
 target_link_libraries(dedispersion PRIVATE
     ${FFTW3F_LIBRARY}
-    CUDA::cudart
-    CUDA::cufft
+    cudart
+    cufft
 )
 
+# ------------------------------------------------------------
+# Includes
+# ------------------------------------------------------------
 target_include_directories(dedispersion PRIVATE
-    ${CUDAToolkit_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
