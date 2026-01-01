@@ -9,8 +9,8 @@ find_library(FFTW3F_LIBRARY fftw3f REQUIRED)
 
 add_library(dedispersion
     src/CoherentDedispersion.cpp
-    # If/when you add CUDA:
-    # src/kernels.cu
+    src/GpuCoherentDedispersion.cu
+    kernels/kernels.cu
 )
 
 set_target_properties(dedispersion PROPERTIES

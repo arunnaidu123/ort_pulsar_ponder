@@ -1,12 +1,12 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <fftw3.h>
+//#include <fftw3.h>
 #include <fstream>
 #include <chrono>
 #include "../utils/FilterbankHeader.h"
 #include "../modules/pfb/PolyPhaseFB.h"
-#include "../modules/dedispersion/CoherentDedispersion.h"
+#include "../modules/dedispersion/GpuCoherentDedispersion.h"
 
 // ----------------------------------------
 // Simple PFB: FIR → polyphase → FFT
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     std::vector<std::complex<float>> data_filtered(gpu_fft_len*fft_len/4);
     std::vector<float> data_out(gpu_fft_len*fft_len/4);
     ort::ponder::modules::pfb::PolyPhaseFB pfb(fft_len, 1.0/(4*fft_len), taps);
-    ort::ponder::modules::dedispersion::CoherentDedispersion dedisp(fft_len/2, gpu_fft_len, atof(argv[4]));
+    ort::ponder::modules::dedispersion::GpuCoherentDedispersion dedisp(fft_len/2, gpu_fft_len, atof(argv[4]));
 
     auto start = std::chrono::high_resolution_clock::now();
     infile.read(reinterpret_cast<char*>(&data_in[0]), data_in.size()/2);

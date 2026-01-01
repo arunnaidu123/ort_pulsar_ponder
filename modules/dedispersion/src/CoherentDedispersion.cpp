@@ -104,9 +104,10 @@ int CoherentDedispersion::calPhase()
             else offset = (_gpu_fft_len-bin)*bin_width;
             double frequency = f_mid+offset;
             double r = (offset*offset*s)/(frequency*f_mid*f_mid);
+            if(band==0 && bin<10) std::cout<<r<<" "<<offset<<" "<<s<<" "<<frequency<<" "<<f_mid<<"\n";
+
             _phase[band*nfft+bin].real(std::cos(r));
             _phase[band*nfft+bin].imag(std::sin(r));
-            //if(band==0) std::cout<<frequency<<" "<<offset<<" \n";
         }
     }
     return 0;

@@ -14,4 +14,4 @@ void typecast_out(float* data_out, float2* cufft_out, int gpu_fft_len, int size)
 
 extern "C"
 __global__
-void convolve(float2 *spectra, double *phase);
+void convolve(float2 *spectra, double *phase, int nfft);

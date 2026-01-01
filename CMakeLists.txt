@@ -1,38 +1,39 @@
 cmake_minimum_required(VERSION 3.16)
 
-# ------------------------------------------------------------------
-# Project
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
+# Project (CUDA enabled here)
+# ------------------------------------------------------------
 project(ponder LANGUAGES CXX CUDA)
 
-# ------------------------------------------------------------------
-# C++ standard
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
+# Language standards
+# ------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# ------------------------------------------------------------------
-# Build type
-# ------------------------------------------------------------------
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
-endif()
-
-# ------------------------------------------------------------------
-# CUDA configuration (native, no FindCUDA)
-# ------------------------------------------------------------------
-# Let CMake find nvcc automatically. If needed, uncomment and set explicitly:
-# set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# TEMPORARILY DISABLED (safe to enable later)
-# set(CMAKE_CUDA_ARCHITECTURES 75)
+# ------------------------------------------------------------
+# GPU architecture (Tesla K20c)
+# ------------------------------------------------------------
+set(CMAKE_CUDA_ARCHITECTURES 35)
 
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
+# Default build type
+# ------------------------------------------------------------
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+endif()
+
+# ------------------------------------------------------------
+# CUDA flags (safe for Kepler)
+# ------------------------------------------------------------
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_35 -expt-relaxed-constexpr")
+
+# ------------------------------------------------------------
 # FetchContent
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
 include(FetchContent)
 
 FetchContent_Declare(
@@ -42,9 +43,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
 # Subdirectories
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
 add_subdirectory(modules/pfb)
 add_subdirectory(modules/dedispersion)
 add_subdirectory(modules/dispersed_pulsar)
