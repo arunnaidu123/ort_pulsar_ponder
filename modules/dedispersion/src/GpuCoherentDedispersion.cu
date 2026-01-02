@@ -9,6 +9,28 @@
 #include "../GpuCoherentDedispersion.h"
 #include "../kernels/kernels.h"
 
+#define CUDA_CHECK(call)                                                   \
+do {                                                                       \
+    cudaError_t err = (call);                                              \
+    if (err != cudaSuccess) {                                              \
+        fprintf(stderr,                                                    \
+                "CUDA error at %s:%d: %s\n",                               \
+                __FILE__, __LINE__, cudaGetErrorString(err));              \
+        std::exit(EXIT_FAILURE);                                           \
+    }                                                                      \
+} while (0)
+
+#define CUFFT_CHECK(call)                                                  \
+do {                                                                       \
+    cufftResult err = (call);                                              \
+    if (err != CUFFT_SUCCESS) {                                            \
+        fprintf(stderr,                                                    \
+                "CUFFT error at %s:%d: %d\n",                              \
+                __FILE__, __LINE__, err);                                  \
+        std::exit(EXIT_FAILURE);                                           \
+    }                                                                      \
+} while (0)
+
 namespace ort {
 namespace ponder {
 namespace modules {
@@ -20,11 +42,11 @@ GpuCoherentDedispersion::GpuCoherentDedispersion(int nchans, int fft_len, float 
     ,   _dm(dm)
     ,   _cpu_temp(fft_len*nchans)
 {
-    cudaMalloc((void**)&_gpu_data_out, fft_len*nchans*sizeof(float)/2);
-    cudaMalloc((void**)&_gpu_in, fft_len*nchans*sizeof(float2));
-    cudaMalloc((void**)&_gpu_mid, fft_len*nchans*sizeof(float2));
-    cudaMalloc((void**)&_gpu_out, fft_len*nchans*sizeof(float2));
-    cudaMalloc((void**)&_phase, fft_len*nchans*sizeof(double));
+    CUDA_CHECK(cudaMalloc((void**)&_gpu_data_out, fft_len*nchans*sizeof(float)/2));
+    CUDA_CHECK(cudaMalloc((void**)&_gpu_in, fft_len*nchans*sizeof(float2)));
+    CUDA_CHECK(cudaMalloc((void**)&_gpu_mid, fft_len*nchans*sizeof(float2)));
+    CUDA_CHECK(cudaMalloc((void**)&_gpu_out, fft_len*nchans*sizeof(float2)));
+    CUDA_CHECK(cudaMalloc((void**)&_phase, fft_len*nchans*sizeof(double)));
 
 
 
@@ -33,22 +55,22 @@ GpuCoherentDedispersion::GpuCoherentDedispersion(int nchans, int fft_len, float 
     int howmany = _nchans;
 
     // Forward plan (interleaved → channel-major)
-    cufftPlanMany(&_planf,
+    CUFFT_CHECK(cufftPlanMany(&_planf,
             rank, n,
             NULL, _nchans, 1,
             NULL, 1, _gpu_fft_len,
             CUFFT_C2C,
             howmany
-    );
+    ));
 
     // Inverse plan (channel-major → interleaved)
-    cufftPlanMany(&_plani,
+    CUFFT_CHECK(cufftPlanMany(&_plani,
         rank, n,
         NULL, 1, _gpu_fft_len,
         NULL, _nchans, 1,
         CUFFT_C2C,
         howmany
-    );
+    ));
     calPhaseKernel<<<_gpu_fft_len*nchans/1024, 1024>>>(_phase, dm, fft_len, nchans);
     cudaDeviceSynchronize();
 }
@@ -75,11 +97,11 @@ int GpuCoherentDedispersion::dedisperse(std::vector<std::complex<float>>& data_i
     cudaMemcpy(&_gpu_in[block_size/2], &data_in[0], sizeof(float2)*block_size/2, cudaMemcpyHostToDevice);
 
 
-    cufftExecC2C(_planf, _gpu_in, _gpu_mid, CUFFT_FORWARD);
+    CUFFT_CHECK(cufftExecC2C(_planf, _gpu_in, _gpu_mid, CUFFT_FORWARD));
 
     convolve<<<block_size/1024, 1024>>>(_gpu_mid, _phase, _gpu_fft_len);
 
-    cufftExecC2C(_planf, _gpu_mid, _gpu_out, CUFFT_INVERSE);
+    CUFFT_CHECK(cufftExecC2C(_planf, _gpu_mid, _gpu_out, CUFFT_INVERSE));
 
     typecast_out<<<block_size/2048, 1024>>>(_gpu_data_out, _gpu_out, _gpu_fft_len, block_size/2);
 

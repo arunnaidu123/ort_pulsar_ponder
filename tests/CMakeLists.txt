@@ -1,8 +1,12 @@
-
 add_executable(unit_tests
     test_pfb.cpp
-#    test_dedispersion.cpp
-#    test_pipeline.cpp
+    test_fft.cpp
+    cufft_many.cu
+)
+
+target_include_directories(unit_tests
+    PRIVATE
+        /usr/include
 )
 
 target_link_libraries(unit_tests
@@ -13,11 +17,8 @@ target_link_libraries(unit_tests
         dedispersion
         dispersed_pulsar
         utils
+        fftw3
 )
-
-target_include_directories(unit_tests PRIVATE /usr/include)
-target_link_libraries(unit_tests PRIVATE fftw3)
-target_compile_features(unit_tests PRIVATE cxx_std_17)
 
 include(GoogleTest)
 gtest_discover_tests(unit_tests)
