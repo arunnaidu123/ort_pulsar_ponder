@@ -11,6 +11,7 @@ add_library(dedispersion
     src/CoherentDedispersion.cpp
     src/GpuCoherentDedispersion.cu
     kernels/kernels.cu
+    kernels/corner_turn.cu
 )
 
 set_target_properties(dedispersion PROPERTIES

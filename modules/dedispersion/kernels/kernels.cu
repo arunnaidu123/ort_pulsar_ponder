@@ -10,6 +10,7 @@ namespace dedispersion {
 #define TWOPI 6.2831853071796
 #define DFFAC 2.41e-10
 #define DVAL 4.148808e9
+#define WRAP_SIZE 32
 
 extern "C"
 __global__ void calPhaseKernel(double *phase, float dm, int nfft, int nbands)
@@ -69,15 +70,36 @@ __global__ void convolve(float2 *spectra, double *phase, int nfft)
     double cx,cy;
     double r = phase[tid];
 
-    if(tid<10) printf("%1.18lf\n",r);
     cx = cos(r);
     cy = sin(r);
     f = spectra[tid];
-    f.x = f.x/4096;
-    f.y = f.y/4096;
     at.x = (float)((f.x*cx)-(f.y*cy));
     at.y = (float)((f.x*cy)+(f.y*cx));
     spectra[tid] = at;
+}
+
+extern "C"
+__global__ void cornerturn_gpu(
+    const float2* __restrict__ in,
+    float2* __restrict__ out,
+    int number_of_channels,
+    int number_of_spectra)
+{
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+    __shared__ float2 tile[WRAP_SIZE * WRAP_SIZE];
+
+    int number_of_channel_tiles = number_of_channels/WRAP_SIZE;
+
+    int tile_channel = blockIdx.x % number_of_channel_tiles;
+    int tile_spetra = blockIdx.x / number_of_channel_tiles;
+
+    int c = threadIdx.x%WRAP_SIZE;
+    int s = threadIdx.x/WRAP_SIZE;
+
+    tile[WRAP_SIZE*s + c] = in[(tile_spetra*WRAP_SIZE+s)*number_of_channels + (tile_channel*WRAP_SIZE+c)];
+    __syncthreads();
+    out[(tile_channel*WRAP_SIZE+c)*number_of_spectra+(tile_spetra*WRAP_SIZE+s)] = tile[WRAP_SIZE*s + c];
 }
 
 } // namespace dedispersion

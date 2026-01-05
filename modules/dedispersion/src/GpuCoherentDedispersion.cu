@@ -9,6 +9,9 @@
 #include "../GpuCoherentDedispersion.h"
 #include "../kernels/kernels.h"
 
+void cornerturn_gpu_launch(std::vector<std::complex<float>> const& , std::vector<std::complex<float>>&, int, int);
+
+
 #define CUDA_CHECK(call)                                                   \
 do {                                                                       \
     cudaError_t err = (call);                                              \
@@ -57,7 +60,7 @@ GpuCoherentDedispersion::GpuCoherentDedispersion(int nchans, int fft_len, float 
     // Forward plan (interleaved → channel-major)
     CUFFT_CHECK(cufftPlanMany(&_planf,
             rank, n,
-            NULL, _nchans, 1,
+            NULL, 1, _gpu_fft_len,
             NULL, 1, _gpu_fft_len,
             CUFFT_C2C,
             howmany
@@ -96,17 +99,20 @@ int GpuCoherentDedispersion::dedisperse(std::vector<std::complex<float>>& data_i
     cudaMemcpy(&_gpu_in[0], &_gpu_in[block_size/2], sizeof(float2)*block_size/2, cudaMemcpyDeviceToDevice);
     cudaMemcpy(&_gpu_in[block_size/2], &data_in[0], sizeof(float2)*block_size/2, cudaMemcpyHostToDevice);
 
+    cornerturn_gpu<<<block_size/1024, 1024>>>(_gpu_in, _gpu_mid, _nchans, _gpu_fft_len);
 
-    CUFFT_CHECK(cufftExecC2C(_planf, _gpu_in, _gpu_mid, CUFFT_FORWARD));
+    CUFFT_CHECK(cufftExecC2C(_planf, _gpu_mid, _gpu_mid, CUFFT_FORWARD));
 
     convolve<<<block_size/1024, 1024>>>(_gpu_mid, _phase, _gpu_fft_len);
 
-    CUFFT_CHECK(cufftExecC2C(_planf, _gpu_mid, _gpu_out, CUFFT_INVERSE));
+    CUFFT_CHECK(cufftExecC2C(_planf, _gpu_mid, _gpu_mid, CUFFT_INVERSE));
+
+    cornerturn_gpu<<<block_size/1024, 1024>>>(_gpu_mid, _gpu_out, _gpu_fft_len, _nchans);
 
     typecast_out<<<block_size/2048, 1024>>>(_gpu_data_out, _gpu_out, _gpu_fft_len, block_size/2);
 
     cudaMemcpy(data_out.data(), &_gpu_data_out[0], sizeof(float)*block_size/2, cudaMemcpyDeviceToHost);
-    //std::cout<<data_in[0].real()<<" "<<data_in[0].imag()<<" \n";
+
     std::cout<<data_out[0]<<" "<<data_out[1]<<" \n";
 
     return 0;

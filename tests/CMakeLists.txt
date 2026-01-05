@@ -2,7 +2,7 @@ add_executable(unit_tests
     test_pfb.cpp
     test_fft.cpp
     test_corner_turn.cpp
-    corner_turn.cu
+    #corner_turn.cu
     cufft_many.cu
 
 )

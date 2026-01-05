@@ -53,15 +53,13 @@ TEST(CornerTurnTest, Sanity)
     std::vector<std::complex<float>> h_out_gpu(number_of_channels * number_of_spectra);
 
     // Fill input with deterministic data
-    for (int r = 0; r < number_of_channels; ++r)
-        for (int c = 0; c < number_of_spectra; ++c)
-            h_in[r * number_of_spectra + c] = {(float)r, (float)c};
-
+    for (int c = 0; c < number_of_channels; ++c)
+        for (int s = 0; s < number_of_spectra; ++s)
+            h_in[s * number_of_channels + c] = {(float)(rand()%100), (float)(rand()%100)};
 
      // CPU reference
     cornerturn_cpu(h_in, h_out_cpu, number_of_channels, number_of_spectra);
     cornerturn_gpu_launch(h_in, h_out_gpu, number_of_channels, number_of_spectra);
 
     ASSERT_TRUE(compare_arrays(h_out_cpu, h_out_gpu, number_of_channels, number_of_spectra));
-
 }
