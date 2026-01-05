@@ -41,7 +41,11 @@ void cufft_many_gpu(
     int fft_len,
     int nchans,
     const std::vector<std::complex<float>>& h_in,
-    std::vector<std::complex<float>>& h_out
+    std::vector<std::complex<float>>& h_out,
+    int istride,
+    int idist,
+    int ostride,
+    int odist
 ) {
     const int total = fft_len * nchans;
 
@@ -61,14 +65,15 @@ void cufft_many_gpu(
         cufftPlanMany(
             &plan,
             rank, n,
-            nullptr, 1, nchans,      // istride, idist
-            nullptr, 1, nchans,     // ostride, odist
+            nullptr, istride, idist,      // istride, idist
+            nullptr, ostride, odist,     // ostride, odist
             CUFFT_C2C,
             nchans
         )
     );
 
     CUFFT_CHECK(cufftExecC2C(plan, d_in, d_out, CUFFT_FORWARD));
+    //CUFFT_CHECK(cufftExecC2C(plan, d_out, d_out, CUFFT_INVERSE));
     CUDA_CHECK(cudaDeviceSynchronize());
 
     CUDA_CHECK(cudaMemcpy(h_out.data(), d_out,
