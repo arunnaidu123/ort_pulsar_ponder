@@ -12,7 +12,7 @@ namespace dedispersion {
 #define DVAL 4.148808e9
 
 extern "C"
-__global__ void complexMul(float2 *a, int N,double dm, double fsky, int sideband, double bw)
+__global__ void complexMul1(float2 *a, int N,double dm, double fsky, int sideband, double bw)
 {
   float2 t;
   float2 c;
@@ -48,7 +48,7 @@ __global__ void complexMul(float2 *a, int N,double dm, double fsky, int sideband
 }
 
 extern "C"
-__global__ void typecaste(float2 *a, char *b, int N)
+__global__ void typecaste1(float2 *a, char *b, int N)
 {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid < N)
@@ -59,7 +59,7 @@ __global__ void typecaste(float2 *a, char *b, int N)
 }
 
 extern "C"
-__global__ void scale( float2 *a, char *b, int N)
+__global__ void scale1( float2 *a, char *b, int N)
 {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid < N)

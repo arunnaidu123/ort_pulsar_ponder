@@ -1,7 +1,7 @@
 #include "PulsarUdpReceptor.h"
 #include "PulsarUdpPacket.h"
-#include "PinCpu.h"
-
+#include "../utils/PinCpu.h"
+#include "../utils/MJDTime.h"
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -10,12 +10,12 @@
 #include <stdexcept>
 #include <errno.h>
 #include <cmath>
-
+#include <cstring>
 // ------------------------------------------------------------
 // Constructor / Destructor
 // ------------------------------------------------------------
 
-PulsarUdpReceptor::PulsarUdpReceptor(RcptRingBuffer<uint8_t>& ring_buf,
+PulsarUdpReceptor::PulsarUdpReceptor(RcptRingBuffer<int8_t>& ring_buf,
                          const std::string& ip_local,
                          int cpu_id)
     : _ring_buf(ring_buf)
@@ -31,7 +31,7 @@ PulsarUdpReceptor::PulsarUdpReceptor(RcptRingBuffer<uint8_t>& ring_buf,
     _init_flag = -1;
 
     std::cout << "UdpReceptor initialized with "
-              << _socks.size() << " sockets\n";
+              << _sock << " sockets\n";
 }
 
 PulsarUdpReceptor::~PulsarUdpReceptor()
@@ -39,9 +39,8 @@ PulsarUdpReceptor::~PulsarUdpReceptor()
     if (_epfd >= 0)
         close(_epfd);
 
-    for (int fd : _socks)
-        if (fd >= 0)
-            close(fd);
+    if (_sock >= 0)
+        close(_sock);
 }
 
 // ------------------------------------------------------------
@@ -78,7 +77,7 @@ void PulsarUdpReceptor::setup_sockets()
         throw std::runtime_error("bind failed");
     }
 
-    _socks.push_back(fd);
+    _sock = fd;
 }
 
 
@@ -98,7 +97,7 @@ void PulsarUdpReceptor::setup_epoll()
     ev.events   = EPOLLIN | EPOLLET;
     //ev.data.u32 = static_cast<uint32_t>(i);  // socket index
 
-    if (epoll_ctl(_epfd, EPOLL_CTL_ADD, _socks[i], &ev) < 0)
+    if (epoll_ctl(_epfd, EPOLL_CTL_ADD, _sock, &ev) < 0)
     {
         perror("epoll_ctl");
         throw std::runtime_error("epoll_ctl failed");
@@ -113,7 +112,7 @@ void PulsarUdpReceptor::run()
 {
     pin_cpu(_cpu_id);
 
-    PulsarUdpPacket<uint8_t, 4096> packet;
+    PulsarUdpPacket<int8_t, 4096> packet;
     epoll_event events[64];
 
     while (_running)
@@ -155,23 +154,59 @@ void PulsarUdpReceptor::run()
                         packet.header().sequence_number() + 1;
                     _init_flag = 0;
 
+                    _base_sequence_number = packet.header().sequence_number() + 1;
+                    _base_mjd_time.day = packet.header().mjd_day();
+                    _base_mjd_time.seconds = packet.header().mjd_seconds();
+                    _base_mjd_time.nanoseconds = packet.header().mjd_nanoseconds();
+                    uint64_t temp_nanoseconds = (8192-packet.header().packet_number())*4096*10;
+                    _base_mjd_time.add(0, temp_nanoseconds);
+                    _init_flag = 0;
+
                     std::cout << "Base sequence for socket "
-                              << idx << " = "
                               << _base_sequence_number << "\n";
+
                 }
 
                 const uint64_t seq =
                     packet.header().sequence_number();
 
                 if (seq < _base_sequence_number)
+                {
                     continue;
+                }
 
-                uint64_t long_seq = seq*8192 + packet.header().packet_number();
+
+                //std::cout<<packet.header().sequence_number()<<" "<<packet.header().packet_number()<<"\n";
+                uint64_t long_seq = (seq-_base_sequence_number)*8192 + packet.header().packet_number();
                 auto writable = _ring_buf.get_writable(long_seq);
                 auto buffer = writable->second;
 
-                unsigned int location =  packet.header().packet_number()*packet.header().payload_size()
-                std::copy(packet.begin(), packet.end(), buffer.begin()+location);
+                //std::cout<<seq<<" "<<_base_sequence_number<<" "<<packet.header().packet_number()<<" "<<long_seq<<"\n";
+                if(buffer->mjd_day()==0)
+                {
+                    MJDTime temp_mjd(_base_mjd_time);
+                    uint64_t temp_nanoseconds = (seq - _base_sequence_number) * 8192*4096*10;
+                    uint32_t temp_seconds = temp_nanoseconds / 1'000'000'000;
+                    temp_nanoseconds %= 1'000'000'000;
+                    temp_mjd.add(temp_seconds, temp_nanoseconds);
+                    buffer->mjd_day(temp_mjd.day);
+                    buffer->mjd_seconds(temp_mjd.seconds);
+                    buffer->mjd_nanoseconds(temp_mjd.nanoseconds);
+                    buffer->packet_sequence_number(seq);
+                    buffer->packet_number(0);
+                }
+
+
+                unsigned int location =  packet.header().packet_number()*packet.payload_size()/2;
+
+                for(unsigned spectra=0; spectra<4; ++spectra)
+                {
+                    for(unsigned int i=0; i<512; ++i)
+                    {
+                        (*(buffer->begin()+spectra*512+i+location)).real(*(packet.begin()+spectra*1024+2*(511-i)));
+                        (*(buffer->begin()+spectra*512+i+location)).imag(*(packet.begin()+spectra*1024+2*(511-i)+1));
+                    }
+                }
             }
         }
     }

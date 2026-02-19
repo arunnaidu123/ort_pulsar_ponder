@@ -1,32 +1,18 @@
-# ------------------------------------------------------------
-# Dispersed pulsar CUDA library
-# ------------------------------------------------------------
-
-# CUDA language already enabled at top level:
-# project(... LANGUAGES CXX CUDA)
-
 add_library(dispersed_pulsar
-    kernels/kernels.cu
     src/DispersedPulsar.cu
+    kernels/kernels.cu
 )
 
 set_target_properties(dispersed_pulsar PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_STANDARD 14
 )
 
-# ------------------------------------------------------------
-# Linking
-# ------------------------------------------------------------
-target_link_libraries(dispersed_pulsar PRIVATE
-    cudart
-    cufft
+target_include_directories(dispersed_pulsar PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# ------------------------------------------------------------
-# Includes
-# ------------------------------------------------------------
-target_include_directories(dispersed_pulsar PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/kernels
+target_link_libraries(dispersed_pulsar
+    PUBLIC
+        ${CUDA_CUDART_LIBRARY}
+        ${CUDA_CUFFT_LIBRARIES}
 )

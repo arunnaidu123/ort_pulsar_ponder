@@ -7,14 +7,13 @@
 
 #include "RcptRingBuffer.h"
 #include "PulsarUdpPacket.h"
+#include "../utils/MJDTime.h"
 
 class PulsarUdpReceptor
 {
 public:
-    PulsarUdpReceptor(RcptRingBuffer<uint8_t>& ring_buf,
-                const std::vector<std::string>& ip_locals,
-                unsigned _number_of_streams,
-                unsigned samples_per_slot,
+    PulsarUdpReceptor(RcptRingBuffer<int8_t>& ring_buf,
+                const std::string& ip_locals,
                 int cpu_id);
 
     ~PulsarUdpReceptor();
@@ -31,13 +30,14 @@ private:
     void setup_epoll();
 
 private:
-    RcptRingBuffer<uint8_t>& _ring_buf;
-    const std::vector<std::string>& _ip_locals;
+    RcptRingBuffer<int8_t>& _ring_buf;
+    const std::string& _ip_local;
     int _cpu_id;
-    std::vector<int> _socks;     // one fd per local IP
+    int _sock;     // one fd per local IP
     int _epfd;
     bool _running;
     // per-socket state
     uint64_t _base_sequence_number;
+    MJDTime  _base_mjd_time;
     int      _init_flag;
 };

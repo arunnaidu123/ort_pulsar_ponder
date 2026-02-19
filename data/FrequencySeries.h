@@ -5,7 +5,7 @@
 #include <complex>
 #include <string>
 #include <fstream>
-#include "argus/utils/AlignedAllocator.h"
+#include "../utils/AlignedAllocator.h"
 #include "FrequencyHeader.h"
 
 template <typename NumericalRep>

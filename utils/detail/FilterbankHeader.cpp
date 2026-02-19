@@ -18,14 +18,14 @@ FilterbankHeader<ValueType>::FilterbankHeader()
     _src_dej=0.0;
     _az_start=0.0;
     _za_start=0.0;
-    _fch1 = 334.5;
-    _foff = -1*16.0/(float)(256);
-    _nchans = 256;
+    _fch1 = 346.5;
+    _foff = -1*50.0/(float)(512);
+    _nchans = 512;
     _nbeams = 1;
     _ibeam = 1;
     _tstart = 61004.800000;
     _start_time = 0.0;
-    _tsamp = 31.25e-9*512;
+    _tsamp = 10.0e-9*1024;
     _machine_id = 7;
     _telescope_id = 2;
 }
@@ -45,6 +45,18 @@ template<typename ValueType>
 double FilterbankHeader<ValueType>::tstart()
 {
     return _tstart;
+}
+
+template<typename ValueType>
+void FilterbankHeader<ValueType>::tsamp(double value)
+{
+    _tsamp = value;
+}
+
+template<typename ValueType>
+double FilterbankHeader<ValueType>::tsamp()
+{
+    return _tsamp;
 }
 
 template<typename ValueType>

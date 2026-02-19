@@ -38,7 +38,7 @@ __global__
 void typecast_in(float2* cufft_in, char* data_in, int size)
 {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
-    //if(tid==0) printf("%f and %f \n",cufft_in[size+tid].x, cufft_in[size+tid].y);
+
     if(tid<size)
     {
         cufft_in[size+tid].x = data_in[2*tid];

@@ -80,11 +80,11 @@ int DispersedPulsar::disperse(std::vector<char>& data_in, std::vector<char>& dat
     float2* cufft_in = reinterpret_cast<float2*>(_cufft_in);
     CUDA_CHECK(cudaMemcpy(_data_in, &_data_in[_nfft/2], _nfft*sizeof(char)/2, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaMemcpy(&_data_in[_nfft/2], data_in.data(), _nfft*sizeof(char)/2, cudaMemcpyHostToDevice));
-    typecaste<<<_nfft/1024,1024>>>(cufft_in, _data_in, _nfft);
+    typecaste1<<<_nfft/1024,1024>>>(cufft_in, _data_in, _nfft);
     CUFFT_CHECK(cufftExecC2C(_plan, cufft_in, cufft_in, CUFFT_FORWARD));
-    complexMul<<<_nfft/1024,1024>>>(cufft_in, _nfft, _dm, 334.5, -1, 16.0);
+    complexMul1<<<_nfft/1024,1024>>>(cufft_in, _nfft, _dm, 334.5, -1, 16.0);
     CUFFT_CHECK(cufftExecC2C(_plan, cufft_in, cufft_in, CUFFT_INVERSE));
-    scale<<<_nfft/1024,1024>>>(cufft_in, _data_out, _nfft);
+    scale1<<<_nfft/1024,1024>>>(cufft_in, _data_out, _nfft);
     CUDA_CHECK(cudaMemcpy(data_out.data(), &_data_out[_nfft/2], _nfft, cudaMemcpyDeviceToHost));
     return 0;
 }

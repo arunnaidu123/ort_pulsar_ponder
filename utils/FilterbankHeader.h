@@ -23,6 +23,9 @@ public:
     void tstart(double value);
     double tstart();
 
+    void tsamp(double value);
+    double tsamp();
+
     std::vector<char> read_string(std::ifstream& fpin);
 
     int read_header(std::ifstream& fpin);

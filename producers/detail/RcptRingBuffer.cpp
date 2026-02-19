@@ -15,7 +15,7 @@ RcptRingBuffer<NumericalRep>::RcptRingBuffer(unsigned int payloads_per_buffer, u
 
     for (unsigned int i = 0; i < number_of_buffers; ++i) {
         BufferType* raw = new BufferType(
-            std::make_pair(0, std::make_shared<std::vector<NumericalRep>>(_payloads_per_buffer * _payload_size))
+            std::make_pair(0, std::make_shared<FrequencySeries<NumericalRep>>(1, 32*1024, 512))
         );
 
         _writeable_queue.push_back(std::shared_ptr<BufferType>(raw, _buffer_deleter));
@@ -35,9 +35,12 @@ void RcptRingBuffer<NumericalRep>::push_function(BufferType* ptr)
         //std::cout << "pushing data " << (void*)ptr<<"\n";
         try
         {
+            std::lock_guard<std::mutex> lock(_write_mutex);
             ptr->first = 0;
             std::fill(ptr->second->begin(), ptr->second->end(), 0);
-            std::lock_guard<std::mutex> lock(_write_mutex);
+            ptr->second->mjd_day(0);
+
+
             _writeable_queue.push_back(std::shared_ptr<BufferType>(ptr, _buffer_deleter));
         }
         catch (...)
@@ -66,11 +69,11 @@ RcptRingBuffer<NumericalRep>::get_writable(unsigned long sequence_number)
 
         if (buffer_index >= _writeable_queue.size())
         {
-            std::cout << "Break in data stream. Exiting\n";
+            std::cout << "Break in data stream. Exiting "<<buffer_index<<" "<<_writeable_queue.size()<<"\n";
             abort(true);
         }
 
-        while (buffer_index > 2)
+        if (buffer_index > _number_of_buffers/2)
         {
             {
                 std::lock_guard<std::mutex> rlock(_read_mutex);
@@ -83,8 +86,9 @@ RcptRingBuffer<NumericalRep>::get_writable(unsigned long sequence_number)
         }
     }
 
-    _writeable_queue[buffer_index]->first += 1;
 
+    _writeable_queue[buffer_index]->first += 1;
+    //if(buffer_index==4) std::cout<<sequence_number<<" "<<_writeable_queue[buffer_index]->first<<" "<<_payloads_per_buffer<<"\n";
     return _writeable_queue[buffer_index];
 }
 

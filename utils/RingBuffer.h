@@ -1,5 +1,5 @@
-#ifndef SKA_PANDA_PACKETSTREAMLITE_RINGBUFFER_H
-#define SKA_PANDA_PACKETSTREAMLITE_RINGBUFFER_H
+#ifndef ORT_ARGUS_UTILS_RINGBUFFER_H
+#define ORT_ARGUS_UTILS_RINGBUFFER_H
 
 #include <deque>
 #include <memory>
@@ -7,26 +7,23 @@
 #include <mutex>
 #include <vector>
 #include <functional>
-#include "../utils/AlignedAllocator.h"
-#include "../data/FrequencySeries.h"
-template <typename NumericalRep>
-class RcptRingBuffer
+
+template <typename BufferType>
+class RingBuffer
 {
-
     public:
-        typedef typename std::pair<unsigned, std::shared_ptr<FrequencySeries<NumericalRep>>> BufferType;
+        template <typename... Args>
+        RingBuffer(unsigned int number_of_buffers, Args&&... args);
 
-    public:
-        RcptRingBuffer(unsigned int payloads_per_buffer, unsigned int payload_size, unsigned int number_of_buffers);
-        ~RcptRingBuffer();
+        ~RingBuffer();
 
         /**
-         * @brief fetch buffer to write packets
+         * @brief fetch next available buffer
          */
-        std::shared_ptr<BufferType>& get_writable(unsigned long sequence_number);
+        std::shared_ptr<BufferType> get_writable();
 
         /**
-         * @brief fetch buffer to read packets
+         * @brief fetch buffer to process the data
          */
         std::shared_ptr<BufferType> get_readable();
 
@@ -46,16 +43,6 @@ class RcptRingBuffer
         unsigned int number_of_readable_buffers() const;
 
         /**
-         * @brief return the payload size
-         */
-        unsigned int payload_size() const;
-
-        /**
-         * @brief return number of payloads per buffer
-         */
-        unsigned int payloads_per_buffer() const;
-
-        /**
          * @brief set abort
          */
         void abort(bool value);
@@ -70,13 +57,22 @@ class RcptRingBuffer
          */
         void push_function(BufferType* ptr);
 
+        /**
+         * @brief function to write to buffer
+         */
+        template <typename DataType>
+        int write_to_buffer(typename DataType::const_iterator begin_it, typename DataType::const_iterator end_it);
+
+        void release_buffer(std::shared_ptr<BufferType>& temp);
 
     private:
         std::function<void(BufferType*)> _buffer_deleter; // deleter function for ringbuffer
-        unsigned int _payloads_per_buffer; // number of payloads expected to be in a given buffer
-        unsigned int _payload_size; // size of each payload
-        unsigned _number_of_buffers;
-        unsigned long _start_packet_sequence_number;
+        unsigned _number_of_modules;
+        unsigned _number_of_samples;
+        size_t _buffer_size;
+        size_t _write_location;
+        size_t _number_of_buffers;
+        std::atomic<size_t> _current_buffer_index;
         std::deque<std::shared_ptr<BufferType>> _readable_queue;
         std::deque<std::shared_ptr<BufferType>> _writeable_queue;
         std::mutex _read_mutex;
@@ -86,6 +82,6 @@ class RcptRingBuffer
         volatile bool _write_flag;
 };
 
-#include "detail/RcptRingBuffer.cpp"
+#include "detail/RingBuffer.cpp"
 
-#endif
+#endif //ORT_ARGUS_UTILS_RINGBUFFER_H
