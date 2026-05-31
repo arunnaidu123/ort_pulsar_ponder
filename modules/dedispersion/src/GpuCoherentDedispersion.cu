@@ -113,7 +113,7 @@ int GpuCoherentDedispersion::dedisperse(std::vector<std::complex<float>>& data_i
 
     cudaMemcpy(data_out.data(), &_gpu_data_out[0], sizeof(float)*block_size/2, cudaMemcpyDeviceToHost);
 
-    std::cout<<data_out[0]<<" "<<data_out[1]<<" \n";
+    std::cout<<"dataout: "<<data_out[256]<<" "<<data_out[257]<<" \n";
 
     return 0;
 

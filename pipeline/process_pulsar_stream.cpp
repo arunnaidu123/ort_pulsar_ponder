@@ -61,7 +61,7 @@ void filterbank_thread(RcptRingBuffer<int8_t>& rcpt_buf, std::ofstream& outfile)
                 {
                     data_avg[i] /= nacc;
                 }
-                if(flag!=0) outfile.write(reinterpret_cast<char*>(data_avg.data()), data_avg.size()*sizeof(float));
+                if(flag != 0) outfile.write(reinterpret_cast<char*>(data_avg.data()), data_avg.size()*sizeof(float));
             }
         }
 
@@ -70,7 +70,7 @@ void filterbank_thread(RcptRingBuffer<int8_t>& rcpt_buf, std::ofstream& outfile)
         start = stop;
         std::cout<<"duration in seconds: "<<duration.count()/1e6<<" s\n";
 
-        flag=1;
+        flag = 1;
     }
 
 }

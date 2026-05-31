@@ -60,7 +60,7 @@ DispersedPulsar::DispersedPulsar(unsigned nfft, float dm)
 
     cudaMalloc((void **)&_cufft_in, sizeof(float2)*_nfft);
     cudaMalloc((void **)&_data_in, sizeof(char)*_nfft); //data_in has both imaginary and real parts and its actual size will be fft_len/2
-    cudaMalloc((void **)&_data_out, sizeof(char)*_nfft*2); //data_in has both imaginary and real parts and its actual size will be fft_len/2
+    cudaMalloc((void **)&_data_out, sizeof(char)*_nfft); //data_in has both imaginary and real parts and its actual size will be fft_len/2
     float2* cufft_in = reinterpret_cast<float2*>(_cufft_in);
     CUFFT_CHECK(cufftPlan1d(&_plan, _nfft, CUFFT_C2C, 1));
     CUFFT_CHECK(cufftExecC2C(_plan, cufft_in, cufft_in, CUFFT_FORWARD));
@@ -82,10 +82,10 @@ int DispersedPulsar::disperse(std::vector<char>& data_in, std::vector<char>& dat
     CUDA_CHECK(cudaMemcpy(&_data_in[_nfft/2], data_in.data(), _nfft*sizeof(char)/2, cudaMemcpyHostToDevice));
     typecaste1<<<_nfft/1024,1024>>>(cufft_in, _data_in, _nfft);
     CUFFT_CHECK(cufftExecC2C(_plan, cufft_in, cufft_in, CUFFT_FORWARD));
-    complexMul1<<<_nfft/1024,1024>>>(cufft_in, _nfft, _dm, 334.5, -1, 16.0);
+    complexMul1<<<_nfft/1024,1024>>>(cufft_in, _nfft, _dm, 296.5, 1, 50.0);
     CUFFT_CHECK(cufftExecC2C(_plan, cufft_in, cufft_in, CUFFT_INVERSE));
     scale1<<<_nfft/1024,1024>>>(cufft_in, _data_out, _nfft);
-    CUDA_CHECK(cudaMemcpy(data_out.data(), &_data_out[_nfft/2], _nfft, cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(data_out.data(), &_data_out[_nfft/4], _nfft/2, cudaMemcpyDeviceToHost));
     return 0;
 }
 

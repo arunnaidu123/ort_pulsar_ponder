@@ -95,7 +95,7 @@ GpuCoherentDedispersion8bit::~GpuCoherentDedispersion8bit()
 int GpuCoherentDedispersion8bit::dedisperse(char* data_in, std::vector<float>& data_out)
 {
     unsigned block_size = _gpu_fft_len*_nchans;
-    std::cout<<(int)data_in[10]<<" "<<(int)data_in[100]<<"\n";
+    std::cout<<(int)data_in[256]<<" "<<(int)data_in[257]<<"\n";
     cudaMemcpy(&_gpu_data_in[0], reinterpret_cast<char*>(data_in), sizeof(int8_t)*block_size, cudaMemcpyHostToDevice);
 
     cudaMemcpy(&_gpu_in[0], &_gpu_in[block_size/2], sizeof(float2)*block_size/2, cudaMemcpyDeviceToDevice);

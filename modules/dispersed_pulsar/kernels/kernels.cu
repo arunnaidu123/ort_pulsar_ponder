@@ -30,11 +30,11 @@ __global__ void complexMul1(float2 *a, int N,double dm, double fsky, int sideban
     f -= bw;
     f = bw -f;
   }
-  if(tid<=(N)/2) r = -1*f*f*s/((fsky+sideband*f)*fsky*fsky);
-  else r = f*f*s/((fsky+sideband*f)*fsky*fsky);
+  if(tid<=(N)/2) r = f*f*s/((fsky+sideband*f)*fsky*fsky);
+  else r = -1*f*f*s/((fsky+sideband*f)*fsky*fsky);
 
   if (f > 0.5*bw) taper = 1.0/sqrt(1.0 + pow((f/(0.94*bw)),80));
-  else  taper = 1.0/sqrt(1.0 + pow(((bw-f)/(0.84*bw)),80));
+  else  taper = 1.0/sqrt(1.0 + pow(((bw-f)/(0.94*bw)),80));
   c.x = (float)( cos(r) * taper );
   c.y = ( (float)( sin(r) * taper));
 
@@ -64,7 +64,7 @@ __global__ void scale1( float2 *a, char *b, int N)
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid < N)
   {
-    b[2*tid] = (char)(float)(a[tid].x/N);
+    b[tid] = (char)(float)(a[tid].x/N);
   }
 }
 

@@ -2,6 +2,8 @@ add_executable(legacy_ponder legacy_ponder.cpp)
 add_executable(pfb_complex pfb_complex.cpp)
 add_executable(sim_pulsar sim_pulsar.cpp)
 add_executable(process_pulsar_stream process_pulsar_stream.cpp)
+add_executable(process_pulsar_file process_pulsar_file.cpp)
+add_executable(process_binary_file process_binary_file.cpp)
 
 target_link_libraries(legacy_ponder
     pfb
@@ -27,6 +29,24 @@ target_link_libraries(sim_pulsar
 )
 
 target_link_libraries(process_pulsar_stream
+    dedispersion
+    dispersed_pulsar
+    legacy_dedispersion
+    producers
+    utils
+    data
+)
+
+target_link_libraries(process_pulsar_file
+    dedispersion
+    dispersed_pulsar
+    legacy_dedispersion
+    producers
+    utils
+    data
+)
+
+target_link_libraries(process_binary_file
     dedispersion
     dispersed_pulsar
     legacy_dedispersion
