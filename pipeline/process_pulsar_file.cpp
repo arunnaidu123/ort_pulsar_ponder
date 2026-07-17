@@ -21,7 +21,7 @@ void filterbank_thread(RcptRingBuffer<int8_t>& rcpt_buf, std::ofstream& outfile)
     unsigned flag = 0;
     unsigned nacc = 32;
     unsigned count=0;
-    ort::ponder::utils::FilterbankHeader<float> fil_header;
+    ort::ponder::utils::FilterbankHeader<float> fil_header(512);
 
     std::vector<std::complex<char>> data_filtered(gpu_fft_len*nchans/2);
     std::vector<float> data_out(gpu_fft_len*nchans/2);
@@ -103,7 +103,7 @@ void convert4bittofloat(std::vector<float>& data_out,
 
 int main(int argc, char* argv[])
 {
-    ort::ponder::utils::FilterbankHeader<float> fil_header;
+    ort::ponder::utils::FilterbankHeader<float> fil_header(512);
     fil_header.tsamp(1024*10e-9);
 
     std::vector<unsigned char> data_in_4bit(512);

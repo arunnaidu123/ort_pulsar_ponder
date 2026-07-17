@@ -21,7 +21,7 @@ public:
 
     ~PolyPhaseFB();
 
-    void exec(std::vector<char> const& data_in, std::vector<std::complex<float>>& data_out, unsigned start_index);
+    void exec(std::vector<float> const& data_in, std::vector<std::complex<float>>& data_out, unsigned start_index);
 
     double dot(const std::vector<double>& a, const std::vector<double>& b);
 
@@ -34,9 +34,9 @@ private:
     double _cutoff_frac;
     std::vector<double> _hamming_fir;
     std::vector<std::vector<double>> _ham_poly;
-    std::vector<fftw_complex> _fft_in;
-    std::vector<fftw_complex> _fft_out;
-    fftw_plan _plan;
+    std::vector<fftwf_complex> _fft_in;
+    std::vector<fftwf_complex> _fft_out;
+    fftwf_plan _plan;
 };
 
 } // namespace pfb

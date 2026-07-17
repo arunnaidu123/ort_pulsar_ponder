@@ -17,7 +17,7 @@ class FilterbankHeader : public SendStuff
 {
 
 public:
-    FilterbankHeader();
+    FilterbankHeader(unsigned nchans);
     ~FilterbankHeader();
 
     void tstart(double value);

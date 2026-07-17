@@ -2,230 +2,139 @@
 #include <vector>
 #include <complex>
 #include <cmath>
+#include <string>
+#include <cstdlib>
+#include <chrono>
 #include "../utils/FilterbankHeader.h"
+#include "../modules/pfb/PolyPhaseFB.h"
+#include "SsePower.h"
 constexpr double PI = 3.14159265358979323846;
 
 class ProcessBlock
 {
     public:
-        ProcessBlock()
-        : _ant1(33*1024)
-        , _ant2(33*1024)
-        , _data_in(33*1024)
+        ProcessBlock(unsigned buffer_size, unsigned nchans, unsigned nacc)
+        : _buffer_size(buffer_size)
+        , _data_in(buffer_size)
+        , _data_tmp(buffer_size, 0.0)
+        , _data_out(buffer_size)
         , _time_buf(1024)
         , _fft_buf(1024)
-        , _temp_buf(1024)
-        , _power_buf(512)
-        , _frac_delay(512)
+        , _fft_buf_nchans(nchans+1)
+        , _power_buf(nchans)
         {
-            _plan = fftwf_plan_dft_1d(1024, reinterpret_cast<fftwf_complex*>(_time_buf.data()), reinterpret_cast<fftwf_complex*>(_fft_buf.data()), FFTW_FORWARD, FFTW_ESTIMATE);
+            _plan = fftwf_plan_dft_1d(1024, reinterpret_cast<fftwf_complex*>(_fft_buf.data()), reinterpret_cast<fftwf_complex*>(_time_buf.data()), FFTW_BACKWARD, FFTW_MEASURE);
+            _plan_nchans = fftwf_plan_dft_r2c_1d(2*nchans, _data_tmp.data(), reinterpret_cast<fftwf_complex*>(_fft_buf_nchans.data()), FFTW_MEASURE);
         }
 
         ~ProcessBlock()
         {
             fftwf_destroy_plan(_plan);
+            fftwf_destroy_plan(_plan_nchans);
         }
 
-        void process_file_frac(std::ifstream& in_file, std::ofstream& out_file, double shift);
-        void process_file_incohernet(std::ifstream& in_file, std::ofstream& out_file, int shift);
-        void process_file_int(std::ifstream& in_file, std::ofstream& out_file, int shift);
+        void process_file_incoherent(std::ifstream& in_file, std::ofstream& out_file, unsigned nchans, unsigned nacc);
 
     private:
         fftwf_plan _plan;
-        std::vector<std::complex<float>> _ant1;
-        std::vector<std::complex<float>> _ant2;
-        std::vector<uint8_t> _data_in;
+        fftwf_plan _plan_nchans;
+        std::size_t _buffer_size;
+        std::vector<int8_t> _data_in;
+        std::vector<float> _data_tmp;
+        std::vector<std::complex<float>> _data_out;
         std::vector<std::complex<float>> _time_buf;
         std::vector<std::complex<float>> _fft_buf;
-        std::vector<std::complex<float>> _temp_buf;
+        std::vector<std::complex<float>> _fft_buf_nchans;
         std::vector<float> _power_buf;
-        std::vector<std::complex<float>> _frac_delay;
 };
 
-inline int8_t unpack4bit(uint8_t nibble)
+void ProcessBlock::process_file_incoherent(std::ifstream& in_file, std::ofstream& out_file, unsigned nchans, unsigned nacc)
 {
-    // nibble must be 0–15
-    return (int8_t)(nibble << 4) >> 4;
-}
-
-void ProcessBlock::process_file_int(std::ifstream& in_file, std::ofstream& out_file, int shift)
-{
-    unsigned count=0;
-    while(!in_file.eof() && count < 915528)
+    std::vector<float> output_buffer;
+    while(in_file.read(reinterpret_cast<char*>(_data_in.data()), _buffer_size) || in_file.gcount() != 0)
     {
-        if(count%100==0) std::cout<<"writing "<<count<<"\n";
-        count++;
-        in_file.read(reinterpret_cast<char*>(&*(_data_in.begin()+1024)), 32*1024);
+        auto start = std::chrono::high_resolution_clock::now();
+        const auto bytes_read = static_cast<std::size_t>(in_file.gcount());
+        unsigned number_of_spectra = bytes_read/1024;
 
-        for(unsigned int i=0; i<33*1024; ++i)
+        for(unsigned int i=0; i<number_of_spectra; ++i)
         {
-            uint8_t byte = _data_in[i];
-
-            int8_t v1 = unpack4bit(byte & 0x0F);        // lower nibble
-            int8_t v2 = unpack4bit((byte >> 4) & 0x0F); // upper nibble
-
-            _ant1[i] = std::complex<float>((float)v1, 0.0f);
-            _ant2[i] = std::complex<float>((float)v2, 0.0f);
-        }
-
-        std::copy(_data_in.begin()+32*1024, _data_in.end(), _data_in.begin());
-        std::fill(_power_buf.begin(), _power_buf.end(), 0);
-        for(unsigned int k=0; k<32; ++k)
-        {
-
-            auto ant1_it = _ant1.begin()+k*1024+512;
-            auto ant2_it = _ant2.begin()+k*1024+512+shift;
-            std::copy(ant1_it, ant1_it+1024, _time_buf.begin());
+            for(unsigned channel=0; channel<512; ++channel)
+            {
+                const std::complex<float> value(
+                    _data_in[i*1024+2*channel],
+                    _data_in[i*1024+2*channel+1]);
+                _fft_buf[512+channel] = value;
+                _fft_buf[511-channel] = std::conj(value);
+            }
             fftwf_execute(_plan);
             for(unsigned int s=0; s<1024; ++s)
             {
-                _temp_buf[s] = _fft_buf[s];
-            }
-            std::copy(ant2_it, ant2_it+1024, _time_buf.begin());
-            fftwf_execute(_plan);
-            for(unsigned int s=0; s<1024; ++s)
-            {
-                _temp_buf[s] = std::complex<float>(_temp_buf[s].real()+_fft_buf[s].real(), _temp_buf[s].imag()+_fft_buf[s].imag());
-            }
-            for(unsigned int s=0; s<512; ++s)
-            {
-                _power_buf[s] += std::abs(_temp_buf[511-s]);
+                _data_tmp[i*1024 + s] = _time_buf[s].real();
             }
         }
-        for(unsigned int s=0; s<512; ++s) _power_buf[s] /= 32.0;
-        out_file.write(reinterpret_cast<char*>(_power_buf.data()), _power_buf.size()*sizeof(float));
 
-    }
-}
-
-void ProcessBlock::process_file_incohernet(std::ifstream& in_file, std::ofstream& out_file, int shift)
-{
-    unsigned count=0;
-    while(!in_file.eof() && count < 915528)
-    {
-        if(count%100==0) std::cout<<"writing "<<count<<"\n";
-        count++;
-        in_file.read(reinterpret_cast<char*>(&*(_data_in.begin()+1024)), 32*1024);
-
-        for(unsigned int i=0; i<33*1024; ++i)
+        number_of_spectra = (number_of_spectra*1024)/(2*nchans);
+        const unsigned output_spectra = number_of_spectra/nacc;
+        output_buffer.resize(static_cast<std::size_t>(output_spectra)*nchans);
+        for(unsigned group = 0; group<output_spectra; ++group)
         {
-            uint8_t byte = _data_in[i];
+            std::fill(_power_buf.begin(), _power_buf.end(), 0.0);
+            for(unsigned n = 0; n<nacc; ++n)
+            {
+                const unsigned spectra = group*nacc+n;
+                fftwf_execute_dft_r2c(
+                    _plan_nchans,
+                    _data_tmp.data() + static_cast<std::size_t>(2)*nchans*spectra,
+                    reinterpret_cast<fftwf_complex*>(_fft_buf_nchans.data()));
 
-            int8_t v1 = unpack4bit(byte & 0x0F);        // lower nibble
-            int8_t v2 = unpack4bit((byte >> 4) & 0x0F); // upper nibble
-
-            _ant1[i] = std::complex<float>((float)v1, 0.0f);
-            _ant2[i] = std::complex<float>((float)v2, 0.0f);
+                accumulate_power_sse4(_fft_buf_nchans.data(), _power_buf.data(), nchans);
+            }
+            normalize_power_sse4(_power_buf.data(), nchans, 1.0f/nacc);
+            std::copy(_power_buf.begin(), _power_buf.end(),
+                      output_buffer.begin() + static_cast<std::size_t>(group)*nchans);
         }
+        out_file.write(reinterpret_cast<const char*>(output_buffer.data()),
+                       output_buffer.size()*sizeof(float));
 
-        std::copy(_data_in.begin()+32*1024, _data_in.end(), _data_in.begin());
-        std::fill(_power_buf.begin(), _power_buf.end(), 0);
-        for(unsigned int k=0; k<32; ++k)
-        {
-
-            auto ant1_it = _ant1.begin()+k*1024+512;
-            auto ant2_it = _ant2.begin()+k*1024+512+shift;
-            std::copy(ant1_it, ant1_it+1024, _time_buf.begin());
-            fftwf_execute(_plan);
-            for(unsigned int s=0; s<1024; ++s)
-            {
-                _temp_buf[s] = _fft_buf[s];
-            }
-            std::copy(ant2_it, ant2_it+1024, _time_buf.begin());
-            fftwf_execute(_plan);
-            for(unsigned int s=0; s<1024; ++s)
-            {
-                _temp_buf[s] = std::complex<float>(_temp_buf[s].real()+_fft_buf[s].real(), _temp_buf[s].imag()+_fft_buf[s].imag());
-            }
-            for(unsigned int s=0; s<512; ++s)
-            {
-                _power_buf[s] += std::abs(_temp_buf[511-s]);
-            }
-        }
-        for(unsigned int s=0; s<512; ++s) _power_buf[s] /= 32.0;
-        out_file.write(reinterpret_cast<char*>(_power_buf.data()), _power_buf.size()*sizeof(float));
-
-    }
-}
-
-void ProcessBlock::process_file_frac(std::ifstream& in_file, std::ofstream& out_file, double shift)
-{
-    int shift_int = (int) shift;
-    double fraction = shift - (double)shift_int;
-    fraction *= 10.0;
-    double tau = fraction*1e-9;
-
-    for(unsigned int i=0; i<512; ++i)
-    {
-        double frequency = i*(50.0/512);
-        frequency *= 1e6;
-        double phi = 2.0 * PI * frequency * tau;
-        _frac_delay[i].real(std::cos(phi));
-        _frac_delay[i].imag(std::sin(phi));
-    }
-
-    unsigned count=0;
-    while(!in_file.eof() && count < 915528)
-    {
-        if(count%100==0) std::cout<<"writing "<<count<<"\n";
-        count++;
-        in_file.read(reinterpret_cast<char*>(&*(_data_in.begin()+1024)), 32*1024);
-
-        for(unsigned int i=0; i<33*1024; ++i)
-        {
-            uint8_t byte = _data_in[i];
-
-            int8_t v1 = unpack4bit(byte & 0x0F);        // lower nibble
-            int8_t v2 = unpack4bit((byte >> 4) & 0x0F); // upper nibble
-
-            _ant1[i] = std::complex<float>((float)v1, 0.0f);
-            _ant2[i] = std::complex<float>((float)v2, 0.0f);
-        }
-
-        std::copy(_data_in.begin()+32*1024, _data_in.end(), _data_in.begin());
-        std::fill(_power_buf.begin(), _power_buf.end(), 0);
-        for(unsigned int k=0; k<32; ++k)
-        {
-
-            auto ant1_it = _ant1.begin()+k*1024+512;
-            auto ant2_it = _ant2.begin()+k*1024+512+shift_int;
-            std::copy(ant1_it, ant1_it+1024, _time_buf.begin());
-            fftwf_execute(_plan);
-            for(unsigned int s=0; s<1024; ++s)
-            {
-                _temp_buf[s] = _fft_buf[s];
-            }
-            std::copy(ant2_it, ant2_it+1024, _time_buf.begin());
-            fftwf_execute(_plan);
-            for(unsigned int s=0; s<512; ++s)
-            {
-                _fft_buf[s] *= _frac_delay[s];
-                _temp_buf[s] = std::complex<float>(_temp_buf[s].real()+_fft_buf[s].real(), _temp_buf[s].imag()+_fft_buf[s].imag());
-            }
-            for(unsigned int s=0; s<512; ++s)
-            {
-                _power_buf[s] += std::abs(_temp_buf[511-s]);
-            }
-        }
-        for(unsigned int s=0; s<512; ++s) _power_buf[s] /= 32.0;
-        out_file.write(reinterpret_cast<char*>(_power_buf.data()), _power_buf.size()*sizeof(float));
-
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        start = stop;
+        std::cout<<"duration in seconds: "<<duration.count()/1e6<<" s\n";
     }
 }
 
 int main(int argc, char* argv[])
 {
-    ort::ponder::utils::FilterbankHeader<float> fil_header;
-    float shift = atof(argv[3]);
-    ProcessBlock process_binary;
-    std::ifstream in_file(argv[1], std::ios::binary);
-    std::ofstream out_file(argv[2], std::ios::binary);
+    if(argc < 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " <input_file> -o <out_file> -nacc <nacc> -nchans <nchans>\n";
+        return 1;
+    }
 
-    fil_header.tstart(61094.702110557038);
-    fil_header.tsamp(32*1024*10e-9);
+    std::string input_file = argv[1];
+    std::string out_file_name;
+    unsigned nchans = 2048;
+    unsigned nacc = 32;
+
+    for(int i=2; i<argc; ++i)
+    {
+        std::string arg = argv[i];
+        if(arg == "-o" && i+1 < argc) out_file_name = argv[++i];
+        else if(arg == "-nacc" && i+1 < argc) nacc = std::atoi(argv[++i]);
+        else if(arg == "-nchans" && i+1 < argc) nchans = std::atoi(argv[++i]);
+    }
+
+    std::ifstream in_file(input_file, std::ios::binary);
+    std::ofstream out_file(out_file_name, std::ios::binary);
+
+    ProcessBlock process_binary(32*1024*1024, nchans, nacc);
+    ort::ponder::utils::FilterbankHeader<float> fil_header(nchans);
+    fil_header.tstart(61236.2123456);
+    fil_header.tsamp(nacc*nchans*2*10e-9);
     fil_header.write_header(out_file);
 
-    process_binary.process_file_frac(in_file, out_file, shift);
+    process_binary.process_file_incoherent(in_file, out_file, nchans, nacc);
 
     return 0;
 }

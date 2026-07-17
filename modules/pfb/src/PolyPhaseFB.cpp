@@ -30,7 +30,7 @@ PolyPhaseFB::PolyPhaseFB(unsigned fft_len, double cutoff_frac, unsigned taps)
         _hamming_fir[n] = sinc * w;
     }
 
-    _plan = fftw_plan_dft_1d(fft_len, _fft_in.data(), _fft_out.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+    _plan = fftwf_plan_dft_1d(fft_len, _fft_in.data(), _fft_out.data(), FFTW_FORWARD, FFTW_ESTIMATE);
 
     for (int k = 0; k < fft_len; k++) {
         for (int n = 0; n < taps; n++) {
@@ -44,7 +44,7 @@ PolyPhaseFB::PolyPhaseFB(unsigned fft_len, double cutoff_frac, unsigned taps)
 
 PolyPhaseFB::~PolyPhaseFB()
 {
-    fftw_destroy_plan(_plan);
+    fftwf_destroy_plan(_plan);
 }
 
 double PolyPhaseFB::dot(const std::vector<double>& a, const std::vector<double>& b)
@@ -56,7 +56,7 @@ double PolyPhaseFB::dot(const std::vector<double>& a, const std::vector<double>&
 }
 
 
-void PolyPhaseFB::exec(std::vector<char> const& data_in, std::vector<std::complex<float>>& data_out, unsigned start_index)
+void PolyPhaseFB::exec(std::vector<float> const& data_in, std::vector<std::complex<float>>& data_out, unsigned start_index)
 {
     //std::cout<<"taps: "<<_taps<<" fft_len "<<_fft_len<<" filter_len "<<_filter_len<<" \n";
     const float scale_fft = std::sqrt(_fft_len);
@@ -69,7 +69,7 @@ void PolyPhaseFB::exec(std::vector<char> const& data_in, std::vector<std::comple
         {
             std::vector<double> sub(_taps);
             for (int n = 0; n < _taps; n++)
-                sub[n] = data_in[2*(i+k + n*_fft_len)]; // take samples k, k+M, k+2M...
+                sub[n] = data_in[i+k + n*_fft_len]; // take samples k, k+M, k+2M...
 
 
             double v = dot(_ham_poly[k], sub);
@@ -79,7 +79,7 @@ void PolyPhaseFB::exec(std::vector<char> const& data_in, std::vector<std::comple
             _fft_in[k][1] = 0.0; // imag
         }
         // Run FFT
-        fftw_execute(_plan);
+        fftwf_execute(_plan);
         for(unsigned int s=0; s<_fft_len/2; s++)
         {
             data_out[start_index+i/2+s].real(_fft_out[s][0]);

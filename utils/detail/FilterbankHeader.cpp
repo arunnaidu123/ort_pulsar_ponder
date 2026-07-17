@@ -11,7 +11,7 @@ namespace ponder {
 namespace utils {
 
 template<typename ValueType>
-FilterbankHeader<ValueType>::FilterbankHeader()
+FilterbankHeader<ValueType>::FilterbankHeader(unsigned nchans)
 {
     _obits=sizeof(ValueType)*8;
     _src_raj=0.0;
@@ -19,8 +19,8 @@ FilterbankHeader<ValueType>::FilterbankHeader()
     _az_start=0.0;
     _za_start=0.0;
     _fch1 = 346.5;
-    _foff = -1*50.0/(float)(512);
-    _nchans = 512;
+    _foff = -1*50.0/(float)(nchans);
+    _nchans = nchans;
     _nbeams = 1;
     _ibeam = 1;
     _tstart = 61004.800000;
