@@ -1,6 +1,7 @@
 #include <tuple>
 #include <numeric>
 #include <iostream>
+#include <stdexcept>
 
 template <typename NumericalRep>
 RcptRingBuffer<NumericalRep>::RcptRingBuffer(unsigned int payloads_per_buffer, unsigned int payload_size, unsigned int number_of_buffers)
@@ -15,7 +16,7 @@ RcptRingBuffer<NumericalRep>::RcptRingBuffer(unsigned int payloads_per_buffer, u
 
     for (unsigned int i = 0; i < number_of_buffers; ++i) {
         BufferType* raw = new BufferType(
-            std::make_pair(0, std::make_shared<FrequencySeries<NumericalRep>>(1, 32*1024, 512))
+            std::make_pair(0, std::make_shared<VoltageSeries<NumericalRep>>(1, _payloads_per_buffer * _payload_size))
         );
 
         _writeable_queue.push_back(std::shared_ptr<BufferType>(raw, _buffer_deleter));
@@ -59,18 +60,18 @@ std::shared_ptr<typename RcptRingBuffer<NumericalRep>::BufferType>&
 RcptRingBuffer<NumericalRep>::get_writable(unsigned long sequence_number)
 {
     std::lock_guard<std::mutex> lock(_write_mutex);
-
     unsigned buffer_index = 0;
-
     if (sequence_number > _start_packet_sequence_number)
     {
         buffer_index =
             (sequence_number - _start_packet_sequence_number) / _payloads_per_buffer;
 
+
         if (buffer_index >= _writeable_queue.size())
         {
             std::cout << "Break in data stream. Exiting "<<buffer_index<<" "<<_writeable_queue.size()<<"\n";
             abort(true);
+            throw std::runtime_error("Break in data stream");
         }
 
         if (buffer_index > _number_of_buffers/2)
@@ -79,6 +80,7 @@ RcptRingBuffer<NumericalRep>::get_writable(unsigned long sequence_number)
                 std::lock_guard<std::mutex> rlock(_read_mutex);
                 _readable_queue.push_back(_writeable_queue.front());
             }
+            _read_cv.notify_one();
 
             _writeable_queue.pop_front();
             _start_packet_sequence_number += _payloads_per_buffer;
@@ -92,95 +94,27 @@ RcptRingBuffer<NumericalRep>::get_writable(unsigned long sequence_number)
     return _writeable_queue[buffer_index];
 }
 
-//template <typename NumericalRep>
-//std::shared_ptr<typename RcptRingBuffer<NumericalRep>::BufferType>& RcptRingBuffer<NumericalRep>::get_writable(unsigned long sequence_number)
-//{
-//    unsigned buffer_index = 0;
-//    if(sequence_number>_start_packet_sequence_number)
-//    {
-//        buffer_index = (sequence_number-_start_packet_sequence_number)/_payloads_per_buffer;
-//
-//        if(buffer_index>_writeable_queue.size())
-//        {
-//            std::cout<<"Break in data stream. Exiting";
-//            abort(true);
-//        }
-//
-//        if(buffer_index>2)
-//        {
-//            std::lock_guard<std::mutex> lock(_read_mutex);
-//            for(unsigned int i=1; i<buffer_index;++i)
-//            {
-//                _readable_queue.push_back(_writeable_queue.front());
-//                _writeable_queue.pop_front();
-//                _start_packet_sequence_number += _payloads_per_buffer;
-//            }
-//            buffer_index=2;
-//        }
-//    }
-//    {
-//        std::lock_guard<std::mutex> lock(_write_mutex);
-//        (*_writeable_queue[buffer_index]).first += 1;
-//    }
-//    return _writeable_queue[buffer_index];
-//}
-
-
 template <typename NumericalRep>
 std::shared_ptr<typename RcptRingBuffer<NumericalRep>::BufferType>
 RcptRingBuffer<NumericalRep>::get_readable()
 {
-    while (!abort())
-    {
-        std::lock_guard<std::mutex> lock(_read_mutex);
+    std::unique_lock<std::mutex> lock(_read_mutex);
+    _read_cv.wait(lock, [this]{ return !_readable_queue.empty() || abort(); });
 
-        if (!_readable_queue.empty())
-        {
-            auto temp = _readable_queue.front();
-            _readable_queue.pop_front();
+    if (_readable_queue.empty())
+        throw std::runtime_error("Unable to return a readable object");
 
-            int missing_packets =
-                int(_payloads_per_buffer) - int(temp->first);
+    auto temp = _readable_queue.front();
+    _readable_queue.pop_front();
 
-            if (missing_packets)
-                std::cout << "missing packets " << missing_packets << "\n";
+    int missing_packets =
+        int(_payloads_per_buffer) - int(temp->first);
 
-            return temp;
-        }
-    }
+    if (missing_packets)
+        std::cout << "missing packets " << missing_packets << "\n";
 
-    throw std::runtime_error("Unable to return a readable object");
+    return temp;
 }
-
-//template <typename NumericalRep>
-//std::shared_ptr<typename RcptRingBuffer<NumericalRep>::BufferType> RcptRingBuffer<NumericalRep>::get_readable()
-//{
-//    BufferType temp;
-//    bool flag=true;
-//
-//    while(flag && !abort())
-//    {
-//        {
-//            std::lock_guard<std::mutex> lock(_read_mutex);
-//            flag = _readable_queue.empty();
-//        }
-//
-//        if(!flag)
-//        {
-//            std::lock_guard<std::mutex> lock(_read_mutex);
-//            auto temp = _readable_queue.front();
-//            _readable_queue.pop_front();
-//            int missing_packets = ((int)_payloads_per_buffer)-((int)(*temp).first);
-//            if(missing_packets)
-//            {
-//                std::cout<<"missing packets "<<missing_packets<<"\n";
-//            }
-//            return temp;
-//        }
-//    }
-//
-//    throw std::runtime_error("Unable to return a readable object\n");
-//}
 
 template <typename NumericalRep>
 std::size_t RcptRingBuffer<NumericalRep>::buffer_size() const
@@ -216,6 +150,7 @@ template <typename NumericalRep>
 void RcptRingBuffer<NumericalRep>::abort(bool value)
 {
     _abort=value;
+    _read_cv.notify_all();
 }
 
 template <typename NumericalRep>

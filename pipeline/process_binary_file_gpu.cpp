@@ -1,5 +1,17 @@
-#define ORT_PONDER_PULSAR_GPU_PIPELINE_ONLY
-#include "process_pulsar_stream_gpu.cu"
+#include <chrono>
+#include <cstddef>
+#include <exception>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "../modules/gpu_pulsar_processing/GpuPulsarProcessing.h"
+#include "../utils/FilterbankHeader.h"
+
+using ort::ponder::modules::GpuPulsarProcessing;
 
 namespace
 {
@@ -63,6 +75,24 @@ bool parse_size(const std::string& value, std::size_t& result)
     return true;
 }
 
+bool parse_float_value(const std::string& value, float& result)
+{
+    std::size_t parsed = 0;
+    float number = 0;
+    try
+    {
+        number = std::stof(value, &parsed);
+    }
+    catch(const std::exception&)
+    {
+        return false;
+    }
+    if(parsed != value.size())
+        return false;
+    result = number;
+    return true;
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -71,13 +101,14 @@ int main(int argc, char* argv[])
     {
         std::cerr << "Usage: " << argv[0]
                   << " <input_file> <output_file> [-nchans <channels>]"
-                     " [-nacc <spectra>] [-device <index>]"
+                     " [-nacc <spectra>] [-dm <pc/cm^3>] [-device <index>]"
                      " [-block-bytes <bytes>]\n";
         return 1;
     }
 
     unsigned nchans = 2048;
     unsigned nacc = 32;
+    float dm = 26.71l;
     int device = 0;
     std::size_t block_bytes = default_input_bytes;
     for(int i = 3; i < argc; ++i)
@@ -93,6 +124,7 @@ int main(int argc, char* argv[])
         const bool valid =
             (option == "-nchans" && parse_unsigned_value(value, nchans)) ||
             (option == "-nacc" && parse_unsigned_value(value, nacc)) ||
+            (option == "-dm" && parse_float_value(value, dm)) ||
             (option == "-device" && parse_device_value(value, device)) ||
             (option == "-block-bytes" && parse_size(value, block_bytes));
         if(!valid)
@@ -124,14 +156,15 @@ int main(int argc, char* argv[])
 
     try
     {
-        GpuPulsarProcessor processor(nchans, nacc, device);
-        ort::ponder::utils::FilterbankHeader<float> header(nchans);
-        header.tstart(61236.2123456);
+        GpuPulsarProcessing processor(nchans, nacc, dm, device);
+        ort::ponder::utils::FilterbankHeader<unsigned short> header(nchans);
+        //header.tstart(61236.2123456); //B0329
+        header.tstart(61241.723414);
         header.tsamp(nacc * 2.0 * nchans * 1e-8);
         header.write_header(output_file);
 
         std::vector<signed char> input(block_bytes);
-        std::vector<float> output;
+        std::vector<unsigned short> output;
         std::size_t block_number = 0;
         while(input_file.read(reinterpret_cast<char*>(input.data()), input.size()) ||
               input_file.gcount() != 0)
@@ -142,9 +175,9 @@ int main(int argc, char* argv[])
                 throw std::runtime_error("input ends with an incomplete complex sample");
 
             const auto start = std::chrono::high_resolution_clock::now();
-            processor.process_raw(input.data(), bytes_read / 2, output);
+            processor.process_raw(input.data(), bytes_read, output);
             output_file.write(reinterpret_cast<const char*>(output.data()),
-                              output.size() * sizeof(float));
+                              output.size() * sizeof(unsigned short));
             if(!output_file)
                 throw std::runtime_error("error writing filterbank output");
 

@@ -26,6 +26,9 @@ public:
     void tsamp(double value);
     double tsamp();
 
+    void fch1(double value);
+    double fch1();
+
     std::vector<char> read_string(std::ifstream& fpin);
 
     int read_header(std::ifstream& fpin);

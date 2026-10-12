@@ -8,8 +8,8 @@
 #include "../utils/FilterbankHeader.h"
 #include "../modules/pfb/PolyPhaseFB.h"
 #include "../modules/dedispersion/GpuCoherentDedispersion8bit.h"
-#include "../producers/PulsarUdpReceptor.h"
-#include "../producers/RcptRingBuffer.h"
+#include "../producers/PulsarUdpReceptor/PulsarUdpReceptor.h"
+#include "../producers/PulsarUdpReceptor/RcptRingBuffer.h"
 // ----------------------------------------
 // Simple PFB: FIR → polyphase → FFT
 // ----------------------------------------

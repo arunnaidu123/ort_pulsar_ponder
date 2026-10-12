@@ -14,8 +14,8 @@
 #include <thread>
 #include <vector>
 
-#include "../producers/PulsarUdpReceptor.h"
-#include "../producers/RcptRingBuffer.h"
+#include "../producers/PulsarUdpReceptor/PulsarUdpReceptor.h"
+#include "../producers/PulsarUdpReceptor/RcptRingBuffer.h"
 #include "../utils/FilterbankHeader.h"
 #include "SsePower.h"
 
@@ -30,15 +30,8 @@ public:
         , _fft_buf(1024)
         , _fft_buf_nchans(nchans + 1)
         , _power_buf(nchans)
-        , _plan(nullptr)
         , _plan_nchans(nullptr)
     {
-        _plan = fftwf_plan_dft_1d(
-            1024,
-            reinterpret_cast<fftwf_complex*>(_fft_buf.data()),
-            reinterpret_cast<fftwf_complex*>(_time_buf.data()),
-            FFTW_BACKWARD,
-            FFTW_MEASURE);
         _plan_nchans = fftwf_plan_dft_r2c_1d(
             2 * nchans,
             _data_tmp.data(),
@@ -51,36 +44,24 @@ public:
 
     ~PulsarStreamWorker()
     {
-        if(_plan) fftwf_destroy_plan(_plan);
         if(_plan_nchans) fftwf_destroy_plan(_plan_nchans);
     }
 
     PulsarStreamWorker(const PulsarStreamWorker&) = delete;
     PulsarStreamWorker& operator=(const PulsarStreamWorker&) = delete;
 
-    void process(const FrequencySeries<int8_t>& data_in,
+    void process(const VoltageSeries<int8_t>& data_in,
                  std::vector<float>& data_out)
     {
-        const std::size_t input_spectra = data_in.size() / 512;
-        _data_tmp.resize(input_spectra * 1024);
+        _data_tmp.resize(data_in.size());
 
-        for(std::size_t spectrum = 0; spectrum < input_spectra; ++spectrum)
+        for(unsigned int i=0; i<data_in.size(); ++i)
         {
-            for(unsigned channel = 0; channel < 512; ++channel)
-            {
-                const auto& input = *(data_in.cbegin() + spectrum * 512 + channel);
-                const std::complex<float> value(input.real(), input.imag());
-                _fft_buf[512 + channel] = value;
-                _fft_buf[511 - channel] = std::conj(value);
-            }
-
-            fftwf_execute(_plan);
-            for(unsigned sample = 0; sample < 1024; ++sample)
-                _data_tmp[spectrum * 1024 + sample] = _time_buf[sample].real();
+            _data_tmp[i] = (float) (*(data_in.cbegin() + i));
         }
 
-        const std::size_t channelized_spectra =
-            (input_spectra * 1024) / (2 * _nchans);
+
+        const std::size_t channelized_spectra = (data_in.size()) / (2 * _nchans);
         const std::size_t output_spectra = channelized_spectra / _nacc;
         data_out.resize(output_spectra * _nchans);
 

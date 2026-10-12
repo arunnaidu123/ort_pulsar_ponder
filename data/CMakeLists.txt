@@ -1,5 +1,5 @@
 add_library(data
-    src/FrequencyHeader.cpp
+    src/VoltageHeader.cpp
 )
 
 target_include_directories(data PUBLIC

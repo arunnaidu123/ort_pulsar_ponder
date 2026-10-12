@@ -48,6 +48,18 @@ double FilterbankHeader<ValueType>::tstart()
 }
 
 template<typename ValueType>
+void FilterbankHeader<ValueType>::fch1(double value)
+{
+    _fch1 = value;
+}
+
+template<typename ValueType>
+double FilterbankHeader<ValueType>::fch1()
+{
+    return _fch1;
+}
+
+template<typename ValueType>
 void FilterbankHeader<ValueType>::tsamp(double value)
 {
     _tsamp = value;

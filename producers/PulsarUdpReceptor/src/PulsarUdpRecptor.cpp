@@ -197,16 +197,8 @@ void PulsarUdpReceptor::run()
                 }
 
 
-                unsigned int location =  packet.header().packet_number()*packet.payload_size()/2;
-
-                for(unsigned spectra=0; spectra<4; ++spectra)
-                {
-                    for(unsigned int i=0; i<512; ++i)
-                    {
-                        (*(buffer->begin()+spectra*512+i+location)).real(*(packet.begin()+spectra*1024+2*(511-i)));
-                        (*(buffer->begin()+spectra*512+i+location)).imag(*(packet.begin()+spectra*1024+2*(511-i)+1));
-                    }
-                }
+                unsigned int location =  packet.header().packet_number()*packet.payload_size();
+                std::copy(packet.begin(), packet.end(), buffer->begin()+location);
             }
         }
     }

@@ -1,24 +1,24 @@
-#ifndef ORT_OWFA_ARGUS_DATA_FREQUENCYSERIES_FREQUENCYSERIES_H
-#define ORT_OWFA_ARGUS_DATA_FREQUENCYSERIES_FREQUENCYSERIES_H
+#ifndef ORT_OWFA_ARGUS_DATA_VOLTAGESERIES_VOLTAGESERIES_H
+#define ORT_OWFA_ARGUS_DATA_VOLTAGESERIES_VOLTAGESERIES_H
 
 #include <vector>
 #include <complex>
 #include <string>
 #include <fstream>
 #include "../utils/AlignedAllocator.h"
-#include "FrequencyHeader.h"
+#include "VoltageHeader.h"
 
 template <typename NumericalRep>
-class FrequencySeries
+class VoltageSeries
 {
 public:
-    typedef std::vector<std::complex<NumericalRep>> DataType;
+    typedef std::vector<NumericalRep> DataType;
     typedef typename DataType::iterator Iterator;
     typedef typename DataType::const_iterator ConstIterator;
 public:
-    FrequencySeries();
-    FrequencySeries(unsigned number_of_modules, unsigned number_of_spectra, unsigned number_of_channels);
-    ~FrequencySeries();
+    VoltageSeries();
+    VoltageSeries(unsigned number_of_modules, unsigned number_of_samples);
+    ~VoltageSeries();
 
     uint64_t packet_sequence_number() const;
     void packet_sequence_number(uint64_t value);
@@ -38,11 +38,8 @@ public:
     uint32_t number_of_modules() const;
     void number_of_modules(uint32_t value);
 
-    uint32_t number_of_spectra() const;
-    void number_of_spectra(uint32_t value);
-
-    uint32_t number_of_channels() const;
-    void number_of_channels(uint32_t value);
+    uint32_t number_of_samples() const;
+    void number_of_samples(uint32_t value);
 
     size_t size() const;
 
@@ -56,10 +53,10 @@ public:
     void sampling_time(float value);
 
 private:
-    FrequencyHeader _header;
-    std::vector<std::complex<NumericalRep>> _data;
+    VoltageHeader _header;
+    std::vector<NumericalRep> _data;
 };
 
-#include "detail/FrequencySeries.cpp"
+#include "detail/VoltageSeries.cpp"
 
-#endif //ORT_OWFA_ARGUS_DATA_FREQUENCYSERIES_FREQUENCYSERIES_H
+#endif //ORT_OWFA_ARGUS_DATA_VOLTAGESERIES_VOLTAGESERIES_H

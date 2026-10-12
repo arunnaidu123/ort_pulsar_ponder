@@ -1,8 +1,9 @@
-add_library(producers
-    src/PulsarUdpHeader.cpp
-    src/PulsarUdpRecptor.cpp
-)
+add_subdirectory(PulsarUdpReceptor)
+add_subdirectory(IpsUdpReceptor)
 
-target_include_directories(producers PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+add_library(producers INTERFACE)
+
+target_link_libraries(producers INTERFACE
+    pulsar_udp_receptor
+    ips_udp_receptor
 )

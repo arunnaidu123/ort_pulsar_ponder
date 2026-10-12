@@ -1,5 +1,5 @@
-#ifndef ORT_OWFA_ARGUS_DATA_FREQUENCYSERIES_FREQUENCYHEADER_H
-#define ORT_OWFA_ARGUS_DATA_FREQUENCYSERIES_FREQUENCYHEADER_H
+#ifndef ORT_OWFA_ARGUS_DATA_VOLTAGESERIES_VOLTAGEHEADER_H
+#define ORT_OWFA_ARGUS_DATA_VOLTAGESERIES_VOLTAGEHEADER_H
 
 #include <vector>
 #include <complex>
@@ -7,11 +7,11 @@
 #include <fstream>
 #include <cstdint>
 
-class FrequencyHeader
+class VoltageHeader
 {
 public:
-    FrequencyHeader(unsigned number_of_modules, unsigned number_of_spectra, unsigned number_of_channels);
-    ~FrequencyHeader();
+    VoltageHeader(unsigned number_of_modules, unsigned number_of_samples);
+    ~VoltageHeader();
 
     uint64_t packet_sequence_number() const;
     void packet_sequence_number(uint64_t value);
@@ -31,11 +31,8 @@ public:
     uint32_t number_of_modules() const;
     void number_of_modules(uint32_t value);
 
-    uint32_t number_of_spectra() const;
-    void number_of_spectra(uint32_t value);
-
-    uint32_t number_of_channels() const;
-    void number_of_channels(uint32_t value);
+    uint32_t number_of_samples() const;
+    void number_of_samples(uint32_t value);
 
     float sampling_time() const;
     void sampling_time(float value);
@@ -47,10 +44,8 @@ private:
     uint32_t _mjd_seconds;
     uint64_t _mjd_nanoseconds;
     uint32_t _number_of_modules;
-    uint32_t _number_of_spectra;
-    uint32_t _number_of_channels;
+    uint32_t _number_of_samples;
     float _sampling_time;
-
 };
 
-#endif //ORT_OWFA_ARGUS_DATA_FREQUENCYSERIES_FREQUENCYHEADER_H
+#endif //ORT_OWFA_ARGUS_DATA_VOLTAGESERIES_VOLTAGEHEADER_H

@@ -5,16 +5,17 @@
 #include <memory>
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 #include <vector>
 #include <functional>
 #include "../utils/AlignedAllocator.h"
-#include "../data/FrequencySeries.h"
+#include "../data/VoltageSeries.h"
 template <typename NumericalRep>
 class RcptRingBuffer
 {
 
     public:
-        typedef typename std::pair<unsigned, std::shared_ptr<FrequencySeries<NumericalRep>>> BufferType;
+        typedef typename std::pair<unsigned, std::shared_ptr<VoltageSeries<NumericalRep>>> BufferType;
 
     public:
         RcptRingBuffer(unsigned int payloads_per_buffer, unsigned int payload_size, unsigned int number_of_buffers);
@@ -81,6 +82,7 @@ class RcptRingBuffer
         std::deque<std::shared_ptr<BufferType>> _writeable_queue;
         std::mutex _read_mutex;
         std::mutex _write_mutex;
+        std::condition_variable _read_cv;
         volatile bool _abort;
         volatile bool _read_flag;
         volatile bool _write_flag;
